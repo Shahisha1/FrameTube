@@ -1,5 +1,7 @@
 package app.frame.video.core.provider
 
+import app.frame.video.domain.provider.VideoProvider
+
 /** Selects only providers explicitly enabled for the requested capability. */
 class ProviderManager(
     private val metadataProviders: List<VideoProvider>,

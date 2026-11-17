@@ -60,7 +60,7 @@ fun FrameApp(container: AppContainer, darkTheme: Boolean, onToggleTheme: (Boolea
     val scope = rememberCoroutineScope()
     val library: LibraryViewModel = viewModel(factory = viewModelFactory { initializer { LibraryViewModel(container.library) } })
     val search: SearchViewModel = viewModel(factory = viewModelFactory { initializer { SearchViewModel(container.library, container.providerManager.metadataProvider("newpipe")!!) } })
-    val importVm: ImportViewModel = viewModel(factory = viewModelFactory { initializer { ImportViewModel(container.importer, container.contentResolver) } })
+    val importVm: ImportViewModel = viewModel(factory = viewModelFactory { initializer { ImportViewModel(container.importer, container.contentResolver, container.metadataEnrichmentScheduler) } })
     val piped by container.preferences.pipedConfig.collectAsStateWithLifecycle(initialValue = PipedConfig(false, ""))
 
     val items = listOf(
@@ -79,7 +79,7 @@ fun FrameApp(container: AppContainer, darkTheme: Boolean, onToggleTheme: (Boolea
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Frame", style = MaterialTheme.typography.titleLarge) },
+                title = { Text("Frame", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary) },
                 actions = {
                     TextButton(onClick = { nav.navigate(Routes.SEARCH) }) { Text("Search") }
                     TextButton(onClick = { nav.navigate(Routes.SETTINGS) }) { Text("Settings") }

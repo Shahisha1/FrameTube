@@ -7,7 +7,8 @@ import app.frame.video.core.datastore.FramePreferences
 import app.frame.video.core.provider.ProviderManager
 import app.frame.video.core.provider.FallbackPlaybackProvider
 import app.frame.video.core.provider.newpipe.NewPipePlaybackProvider
-import app.frame.video.core.provider.newpipe.NewPipeVideoProvider
+import app.frame.video.data.remote.newpipe.NewPipeVideoProvider
+import app.frame.video.data.worker.MetadataEnrichmentScheduler
 import app.frame.video.core.provider.piped.PipedApi
 import app.frame.video.core.provider.piped.PipedPlaybackProvider
 import app.frame.video.data.importer.TakeoutImporter
@@ -24,6 +25,7 @@ class AppContainer(context: Context) {
     val preferences by lazy { FramePreferences(appContext) }
     val library: LibraryRepository by lazy { RoomLibraryRepository(database.libraryDao()) }
     val importer by lazy { TakeoutImporter(database) }
+    val metadataEnrichmentScheduler by lazy { MetadataEnrichmentScheduler(appContext) }
     val providerManager by lazy {
         ProviderManager(
             metadataProviders = listOf(NewPipeVideoProvider()),
@@ -41,4 +43,8 @@ class AppContainer(context: Context) {
 
 class FrameApplication : Application() {
     val container: AppContainer by lazy { AppContainer(this) }
+    override fun onCreate() {
+        super.onCreate()
+        container.metadataEnrichmentScheduler.schedule()
+    }
 }

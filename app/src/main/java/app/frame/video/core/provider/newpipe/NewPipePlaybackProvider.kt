@@ -1,5 +1,7 @@
 package app.frame.video.core.provider.newpipe
 
+import app.frame.video.data.remote.newpipe.NewPipeClient
+
 import app.frame.video.core.provider.PlaybackProvider
 import app.frame.video.core.provider.PlaybackResolution
 import app.frame.video.core.provider.PlaybackState
@@ -41,9 +43,10 @@ class NewPipePlaybackProvider : PlaybackProvider {
         val progressive = info.getVideoStreams()
             .filterNot { it.isVideoOnly() }
             .maxByOrNull { it.getHeight() }
-        if (progressive != null) {
+        val progressiveUrl = progressive?.getUrl()?.takeIf(String::isNotBlank)
+        if (progressive != null && progressiveUrl != null) {
             return PlaybackResolution.Ready(
-                progressive.getUrl(),
+                progressiveUrl,
                 progressive.getFormat()?.mimeType,
                 "YouTube · NewPipe · ${progressive.getResolution()}"
             )

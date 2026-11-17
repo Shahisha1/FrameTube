@@ -3,6 +3,8 @@ package app.frame.video.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -14,11 +16,12 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import app.frame.video.core.provider.MetadataAvailability
-import app.frame.video.core.provider.VideoMetadataResult
-import app.frame.video.core.provider.VideoProvider
+import app.frame.video.domain.provider.MetadataAvailability
+import app.frame.video.domain.provider.VideoMetadataResult
+import app.frame.video.domain.provider.VideoProvider
 import app.frame.video.data.local.VideoEntity
 import app.frame.video.domain.LibraryRepository
+import app.frame.video.ui.components.VideoThumbnail
 import app.frame.video.ui.components.openOnYouTube
 
 @Composable
@@ -41,6 +44,8 @@ fun DetailsScreen(
         Modifier.fillMaxSize().padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        val thumbnail = online?.thumbnailUrl ?: video?.thumbnailUrl
+        if (!thumbnail.isNullOrBlank()) VideoThumbnail(thumbnail, Modifier.fillMaxWidth().aspectRatio(16f / 9f))
         Text(
             if (idOnly) online?.title ?: "Video $videoId" else video!!.title,
             style = MaterialTheme.typography.headlineSmall

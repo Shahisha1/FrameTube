@@ -16,6 +16,14 @@ interface LibraryDao {
     @Query("SELECT * FROM videos WHERE id = :videoId LIMIT 1")
     suspend fun getVideo(videoId: String): VideoEntity?
 
+    /** Imported records with an ID in place of a title are enriched asynchronously. */
+    @Query("SELECT * FROM videos WHERE title = id AND metadataUpdatedAt IS NULL LIMIT :limit")
+    suspend fun videosNeedingMetadata(limit: Int): List<VideoEntity>
+    @Query("UPDATE videos SET title = :title, thumbnailUrl = :thumbnailUrl, source = 'TAKEOUT_ENRICHED', metadataUpdatedAt = :updatedAt WHERE id = :videoId")
+    suspend fun updateVideoMetadata(videoId: String, title: String, thumbnailUrl: String?, updatedAt: Long)
+    @Query("UPDATE videos SET metadataUpdatedAt = :attemptedAt WHERE id = :videoId")
+    suspend fun markMetadataAttempted(videoId: String, attemptedAt: Long)
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertVideos(items: List<VideoEntity>)
 

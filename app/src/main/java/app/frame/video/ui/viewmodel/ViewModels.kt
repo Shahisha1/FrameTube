@@ -7,8 +7,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import app.frame.video.core.provider.PlaybackResolution
-import app.frame.video.core.provider.VideoMetadataResult
-import app.frame.video.core.provider.VideoProvider
+import app.frame.video.domain.provider.VideoMetadataResult
+import app.frame.video.domain.provider.VideoProvider
+import app.frame.video.data.worker.MetadataEnrichmentScheduler
 import app.frame.video.core.provider.PlaybackState
 import app.frame.video.core.provider.ProviderManager
 import app.frame.video.data.importer.TakeoutImportResult
@@ -55,28 +56,48 @@ class SearchViewModel(
 ) : ViewModel() {
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query
+    private val _submittedQuery = MutableStateFlow("")
+    val submittedQuery: StateFlow<String> = _submittedQuery
     private val _onlineResults = MutableStateFlow<List<VideoMetadataResult>>(emptyList())
     val onlineResults: StateFlow<List<VideoMetadataResult>> = _onlineResults
     private val _onlineLoading = MutableStateFlow(false)
     val onlineLoading: StateFlow<Boolean> = _onlineLoading
+    private val _onlineError = MutableStateFlow<String?>(null)
+    val onlineError: StateFlow<String?> = _onlineError
+    private var searchJob: Job? = null
 
-    fun setQuery(q: String) { _query.value = q }
+    fun setQuery(q: String) {
+        _query.value = q
+        if (q.trim() != _submittedQuery.value) {
+            searchJob?.cancel()
+            _onlineResults.value = emptyList()
+            _onlineError.value = null
+            _onlineLoading.value = false
+        }
+    }
 
-    init {
-        viewModelScope.launch {
-            _query.debounce(450).map { it.trim() }.distinctUntilChanged().collectLatest { term ->
-                if (term.isBlank()) {
-                    _onlineResults.value = emptyList()
-                    _onlineLoading.value = false
-                } else {
-                    _onlineResults.value = emptyList()
-                    _onlineLoading.value = true
-                    try {
-                        _onlineResults.value = onlineProvider.searchVideos(term).items
-                    } finally {
-                        _onlineLoading.value = false
-                    }
+    /** Explicit submit, with cancellable requests and visible failure state. */
+    fun searchNow() {
+        val term = _query.value.trim()
+        if (term.isBlank()) return
+        searchJob?.cancel()
+        _submittedQuery.value = term
+        _onlineResults.value = emptyList()
+        _onlineError.value = null
+        searchJob = viewModelScope.launch {
+            _onlineLoading.value = true
+            try {
+                val result = onlineProvider.searchVideos(term)
+                if (_submittedQuery.value == term) {
+                    _onlineResults.value = result.items
+                    _onlineError.value = result.errorMessage
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                if (_submittedQuery.value == term) _onlineError.value = "Search failed: ${error.message ?: error.javaClass.simpleName}"
+            } finally {
+                if (_submittedQuery.value == term) _onlineLoading.value = false
             }
         }
     }
@@ -101,7 +122,8 @@ sealed interface ImportUiState {
 
 class ImportViewModel(
     private val importer: TakeoutImporter,
-    private val contentResolver: ContentResolver
+    private val contentResolver: ContentResolver,
+    private val metadataEnrichment: MetadataEnrichmentScheduler
 ) : ViewModel() {
     private val _state = MutableStateFlow<ImportUiState>(ImportUiState.Idle)
     val state: StateFlow<ImportUiState> = _state
@@ -137,7 +159,9 @@ class ImportViewModel(
         _state.value = ImportUiState.Saving
         job = viewModelScope.launch {
             try {
-                _state.value = ImportUiState.Done(importer.commit(s.parsed, s.sourceName))
+                val result = importer.commit(s.parsed, s.sourceName)
+                metadataEnrichment.schedule()
+                _state.value = ImportUiState.Done(result)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
