@@ -31,16 +31,36 @@ class NewPipeVideoProvider : VideoProvider {
         if (term.isBlank()) return VideoSearchResult(emptyList(), null)
         return try {
             val info = NewPipeClient.search(term)
-            val items = info.relatedItems.filterIsInstance<StreamInfoItem>().mapNotNull { item ->
-                val id = VIDEO_URL_ID.find(item.url)?.groupValues?.get(1) ?: VIDEO_ID.find(item.url)?.value ?: return@mapNotNull null
+            val rawItems = info.relatedItems
+            val streamItems = rawItems.filterIsInstance<StreamInfoItem>()
+            val items = streamItems.mapNotNull { item ->
+                val id = VIDEO_URL_ID.find(item.url)?.groupValues?.get(1)
+                    ?: VIDEO_ID.find(item.url)?.value
+                if (id == null) {
+                    Log.w(TAG, "Ignoring search stream with an unrecognized URL: ${item.url}")
+                    return@mapNotNull null
+                }
                 VideoMetadataResult(id, item.name, null, item.thumbnails.firstOrNull()?.url, MetadataAvailability.AVAILABLE)
             }.distinctBy { it.videoId }
-            Log.d(TAG, "Search completed: ${items.size} video results")
-            VideoSearchResult(items, null)
+
+            val extractorErrors = info.errors
+            Log.d(
+                TAG,
+                "YouTube search '$term': rawItems=${rawItems.size}, streamItems=${streamItems.size}, " +
+                    "mappedVideos=${items.size}, errors=${extractorErrors.size}, " +
+                    "types=${rawItems.groupingBy { it.infoType }.eachCount()}, " +
+                    "errorDetails=${extractorErrors.joinToString { it.message ?: it.javaClass.simpleName }}"
+            )
+
+            val emptyResultError = if (items.isEmpty() && extractorErrors.isNotEmpty()) {
+                "YouTube returned no videos because NewPipe reported: " +
+                    extractorErrors.take(2).joinToString { it.message ?: it.javaClass.simpleName }
+            } else null
+            VideoSearchResult(items, null, emptyResultError)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
-            Log.e(TAG, "YouTube search failed", error)
+            Log.e(TAG, "YouTube search failed for '$term'", error)
             val message = if (error is IOException) "Could not connect to YouTube. Check your connection and try again."
                 else "NewPipe could not load YouTube results. YouTube may have changed or temporarily restricted this request."
             VideoSearchResult(emptyList(), null, message)
