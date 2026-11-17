@@ -22,6 +22,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -76,21 +77,36 @@ fun <T : Any> PagedList(
 
 @Composable
 fun VideoThumbnail(url: String?, modifier: Modifier = Modifier) {
-    AsyncImage(model = url, contentDescription = null, contentScale = ContentScale.Crop, modifier = modifier.clip(RoundedCornerShape(10.dp)))
+    AsyncImage(
+        model = url,
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        modifier = modifier.clip(RoundedCornerShape(8.dp))
+    )
 }
 
 @Composable
 fun VideoRow(video: VideoEntity, onOpen: (String) -> Unit) {
     val idOnly = video.title == video.id
     ListItem(
-        headlineContent = { Text(if (idOnly) "Video ${video.id}" else video.title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
-        supportingContent = { Text(if (idOnly) "Saved from Takeout · details not loaded" else video.source.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() }) },
+        headlineContent = {
+            Text(if (idOnly) "Video ${video.id}" else video.title, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        },
+        supportingContent = {
+            Text(
+                if (idOnly) "Saved from Takeout · details not loaded"
+                else video.source.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        },
         leadingContent = {
             if (!video.thumbnailUrl.isNullOrBlank()) VideoThumbnail(video.thumbnailUrl, Modifier.size(116.dp, 66.dp))
             else Box(Modifier.size(116.dp, 66.dp), contentAlignment = Alignment.Center) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
         modifier = Modifier.clickable(onClickLabel = "Open video") { onOpen(video.id) }
     )
 }
