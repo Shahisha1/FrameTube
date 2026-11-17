@@ -65,10 +65,12 @@ class SearchViewModel(
     private val _onlineError = MutableStateFlow<String?>(null)
     val onlineError: StateFlow<String?> = _onlineError
     private var searchJob: Job? = null
+    private var requestGeneration: Int = 0
 
     fun setQuery(q: String) {
         _query.value = q
         if (q.trim() != _submittedQuery.value) {
+            requestGeneration += 1
             searchJob?.cancel()
             _onlineResults.value = emptyList()
             _onlineError.value = null
@@ -80,6 +82,7 @@ class SearchViewModel(
     fun searchNow() {
         val term = _query.value.trim()
         if (term.isBlank()) return
+        val generation = ++requestGeneration
         searchJob?.cancel()
         _submittedQuery.value = term
         _onlineResults.value = emptyList()
@@ -88,16 +91,16 @@ class SearchViewModel(
             _onlineLoading.value = true
             try {
                 val result = onlineProvider.searchVideos(term)
-                if (_submittedQuery.value == term) {
+                if (requestGeneration == generation && _submittedQuery.value == term) {
                     _onlineResults.value = result.items
                     _onlineError.value = result.errorMessage
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
-                if (_submittedQuery.value == term) _onlineError.value = "Search failed: ${error.message ?: error.javaClass.simpleName}"
+                if (requestGeneration == generation && _submittedQuery.value == term) _onlineError.value = "Search failed: ${error.message ?: error.javaClass.simpleName}"
             } finally {
-                if (_submittedQuery.value == term) _onlineLoading.value = false
+                if (requestGeneration == generation && _submittedQuery.value == term) _onlineLoading.value = false
             }
         }
     }

@@ -3,7 +3,6 @@ package app.frame.video
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
@@ -17,7 +16,7 @@ class MainActivity : ComponentActivity() {
         val container = (application as FrameApplication).container
         setContent {
             val saved by container.preferences.darkMode.collectAsStateWithLifecycle(initialValue = null)
-            val dark = saved ?: isSystemInDarkTheme()
+            val dark = saved ?: true
             FrameTheme(darkTheme = dark) {
                 FrameApp(
                     container = container,
