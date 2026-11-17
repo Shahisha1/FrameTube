@@ -1,26 +1,31 @@
 package app.frame.video.ui
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Subscriptions
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -55,7 +60,13 @@ private data class NavItem(val route: String, val label: String, val icon: Image
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FrameApp(container: AppContainer, darkTheme: Boolean, onToggleTheme: (Boolean) -> Unit) {
+fun FrameApp(
+    container: AppContainer,
+    darkTheme: Boolean,
+    dynamicColor: Boolean,
+    onToggleTheme: (Boolean) -> Unit,
+    onToggleDynamicColor: (Boolean) -> Unit
+) {
     val nav = rememberNavController()
     val scope = rememberCoroutineScope()
     val library: LibraryViewModel = viewModel(factory = viewModelFactory { initializer { LibraryViewModel(container.library) } })
@@ -75,19 +86,33 @@ fun FrameApp(container: AppContainer, darkTheme: Boolean, onToggleTheme: (Boolea
     val showBottomBar = items.any { destination?.hierarchy?.any { d -> d.route == it.route } == true }
     val openVideo = { id: String -> nav.navigate(Routes.details(id)) }
     val openImport = { nav.navigate(Routes.IMPORT) }
+    val openSearch = { nav.navigate(Routes.SEARCH) }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Frame", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary) },
+            TopAppBar(
+                title = {
+                    Column {
+                        Text("FRAME", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+                        Text("YOUR VIDEO LIBRARY", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                },
                 actions = {
-                    TextButton(onClick = { nav.navigate(Routes.SEARCH) }) { Text("Search") }
-                    TextButton(onClick = { nav.navigate(Routes.SETTINGS) }) { Text("Settings") }
-                }
+                    IconButton(onClick = openSearch) { Icon(Icons.Default.Search, contentDescription = "Search videos") }
+                    IconButton(onClick = { nav.navigate(Routes.SETTINGS) }) { Icon(Icons.Default.Settings, contentDescription = "Settings") }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                )
             )
         },
         bottomBar = {
-            if (showBottomBar) NavigationBar {
+            if (showBottomBar) NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface
+            ) {
                 items.forEach { item ->
                     NavigationBarItem(
                         selected = destination?.hierarchy?.any { it.route == item.route } == true,
@@ -106,7 +131,7 @@ fun FrameApp(container: AppContainer, darkTheme: Boolean, onToggleTheme: (Boolea
         }
     ) { padding ->
         NavHost(navController = nav, startDestination = Routes.HOME, modifier = Modifier.padding(padding)) {
-            composable(Routes.HOME) { HomeScreen(library, onOpenImport = { openImport() }, onOpenVideo = openVideo) }
+            composable(Routes.HOME) { HomeScreen(library, onOpenImport = { openImport() }, onOpenSearch = { openSearch() }, onOpenVideo = openVideo) }
             composable(Routes.SUBSCRIPTIONS) { ChannelsScreen(library, onImport = { openImport() }) }
             composable(Routes.PLAYLISTS) { PlaylistsScreen(library, onOpenPlaylist = { nav.navigate(Routes.playlist(it)) }, onImport = { openImport() }) }
             composable(Routes.PLAYLIST) { entry ->
@@ -119,6 +144,8 @@ fun FrameApp(container: AppContainer, darkTheme: Boolean, onToggleTheme: (Boolea
                 SettingsScreen(
                     darkTheme = darkTheme,
                     onToggleTheme = onToggleTheme,
+                    dynamicColor = dynamicColor,
+                    onToggleDynamicColor = onToggleDynamicColor,
                     piped = piped,
                     onSetPiped = { enabled, url -> scope.launch { container.preferences.setPiped(enabled, url.trim()) } },
                     onImport = { openImport() },

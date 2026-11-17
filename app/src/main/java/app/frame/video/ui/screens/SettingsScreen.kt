@@ -1,5 +1,6 @@
 package app.frame.video.ui.screens
 
+import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,6 +33,8 @@ import app.frame.video.core.provider.piped.PipedApi
 fun SettingsScreen(
     darkTheme: Boolean,
     onToggleTheme: (Boolean) -> Unit,
+    dynamicColor: Boolean,
+    onToggleDynamicColor: (Boolean) -> Unit,
     piped: PipedConfig,
     onSetPiped: (enabled: Boolean, url: String) -> Unit,
     onImport: () -> Unit,
@@ -41,16 +44,38 @@ fun SettingsScreen(
     var showConsent by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
     val urlValid = PipedApi.normalizeInstanceUrl(urlText) != null
+    val supportsDynamicColor = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Settings", style = MaterialTheme.typography.headlineMedium)
+        Text("Appearance", style = MaterialTheme.typography.headlineMedium)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Column(Modifier.weight(1f)) {
                 Text("Dark theme", style = MaterialTheme.typography.titleMedium)
-                Text("Use a dark look for the app.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Use Frame's dark charcoal palette.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Switch(checked = darkTheme, onCheckedChange = onToggleTheme)
         }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Column(Modifier.weight(1f)) {
+                Text("Wallpaper colors", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    if (supportsDynamicColor) "Use Material You colors from your device wallpaper."
+                    else "Requires Android 12 or newer.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = dynamicColor,
+                enabled = supportsDynamicColor,
+                onCheckedChange = onToggleDynamicColor
+            )
+        }
+        Text(
+            if (dynamicColor && supportsDynamicColor) "Material You colors are active. Turn this off to restore Frame's red accent."
+            else "Frame's charcoal and red palette is active.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         HorizontalDivider()
 
         Text("Unofficial playback (Piped)", style = MaterialTheme.typography.titleMedium)

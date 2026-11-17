@@ -14,16 +14,22 @@ data class PipedConfig(val enabled: Boolean, val instanceUrl: String)
 
 class FramePreferences(private val context: Context) {
     private val darkModeKey = booleanPreferencesKey("dark_mode")
+    private val dynamicColorKey = booleanPreferencesKey("dynamic_color")
     private val pipedEnabledKey = booleanPreferencesKey("piped_enabled")
     private val pipedUrlKey = stringPreferencesKey("piped_instance_url")
 
     val darkMode: Flow<Boolean?> = context.frameDataStore.data.map { it[darkModeKey] }
+    val dynamicColor: Flow<Boolean> = context.frameDataStore.data.map { it[dynamicColorKey] ?: false }
     val pipedConfig: Flow<PipedConfig> = context.frameDataStore.data.map {
         PipedConfig(it[pipedEnabledKey] ?: false, it[pipedUrlKey].orEmpty())
     }
 
     suspend fun setDarkMode(enabled: Boolean) {
         context.frameDataStore.edit { it[darkModeKey] = enabled }
+    }
+
+    suspend fun setDynamicColor(enabled: Boolean) {
+        context.frameDataStore.edit { it[dynamicColorKey] = enabled }
     }
 
     suspend fun setPiped(enabled: Boolean, instanceUrl: String) {
