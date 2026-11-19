@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.rememberScrollState
@@ -27,6 +28,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
@@ -64,6 +66,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.compose.collectAsLazyPagingItems
 import app.frame.video.ui.components.EmptyState
@@ -538,60 +542,162 @@ fun SubscriptionsScreen(
 ) {
     val channels = vm.channels.collectAsLazyPagingItems()
     val feed by discovery.state.collectAsStateWithLifecycle()
+
     Column(Modifier.fillMaxSize()) {
         Row(
-            Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 10.dp, bottom = 2.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Subscriptions", modifier = Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-            IconButton(onClick = discovery::refresh) { Icon(Icons.Default.Refresh, contentDescription = "Refresh subscriptions") }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("Subscriptions", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(
+                    "Latest uploads from your channels",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            TextButton(onClick = onImport) { Text("Manage") }
+            IconButton(onClick = discovery::refresh) {
+                Icon(Icons.Default.Refresh, contentDescription = "Refresh subscriptions")
+            }
         }
+
         if (channels.itemCount > 0) {
-            androidx.compose.foundation.lazy.LazyRow(
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(18.dp)
+            LazyRow(
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(channels.itemCount) { index ->
                     channels[index]?.let { channel ->
                         Column(
-                            Modifier.width(72.dp).clickable { onOpenChannel(channel.id) },
-                            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                            Modifier.width(68.dp).clickable { onOpenChannel(channel.id) },
+                            horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            if (!channel.thumbnailUrl.isNullOrBlank()) AsyncImage(
-                                model = channel.thumbnailUrl, contentDescription = channel.title,
-                                modifier = Modifier.size(56.dp).clip(CircleShape)
-                            ) else Box(
-                                Modifier.size(56.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant),
-                                contentAlignment = androidx.compose.ui.Alignment.Center
-                            ) { Text(channel.title.take(1).uppercase()) }
-                            Text(channel.title, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                            Box(
+                                Modifier.size(56.dp).clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (!channel.thumbnailUrl.isNullOrBlank()) {
+                                    AsyncImage(
+                                        model = channel.thumbnailUrl,
+                                        contentDescription = channel.title,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize().clip(CircleShape)
+                                    )
+                                } else {
+                                    Text(channel.title.take(1).uppercase(), style = MaterialTheme.typography.titleMedium)
+                                }
+                            }
+                            Text(
+                                channel.title,
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
                 }
             }
+        } else {
+            Text(
+                "Your channels will appear here",
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
+
         androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Latest", modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(
+                if (feed.videos.isEmpty()) " " else "${feed.videos.size} uploads",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
         when {
-            feed.loading && feed.videos.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) { CircularProgressIndicator() }
+            feed.loading && feed.videos.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
             feed.videos.isEmpty() -> EmptyState(
                 "No recent uploads",
-                "Subscribe to channels to see their latest public videos here.",
+                "New public videos from your subscribed channels will appear here.",
                 "Import subscriptions",
                 onImport
             )
-            else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 16.dp)) {
+            else -> LazyColumn(
+                Modifier.fillMaxSize(),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 12.dp, end = 12.dp, bottom = 18.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
                 items(feed.videos, key = { it.videoId }) { video ->
-                    HomeVideoItem(
-                        videoId = video.videoId,
-                        title = video.title?.takeIf { it.isNotBlank() } ?: "YouTube video",
-                        thumbnail = video.thumbnailUrl,
-                        channel = video.channelName ?: "Latest upload",
-                        duration = video.durationSeconds,
-                        channelAvatar = video.channelAvatarUrl,
-                        metadataLine = videoMetadataLine(video),
-                        onClick = { onOpenVideo(video.videoId) }
-                    )
+                    Row(
+                        Modifier.fillMaxWidth().clickable { onOpenVideo(video.videoId) },
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Box(
+                            Modifier.width(148.dp).height(84.dp).clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            if (!video.thumbnailUrl.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = video.thumbnailUrl,
+                                    contentDescription = video.title,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                            video.durationSeconds?.takeIf { it > 0L }?.let { duration ->
+                                val label = if (duration >= 3600L) "%d:%02d:%02d".format(duration / 3600L, (duration % 3600L) / 60L, duration % 60L)
+                                    else "%d:%02d".format(duration / 60L, duration % 60L)
+                                Text(
+                                    label,
+                                    modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp)
+                                        .background(Color.Black.copy(alpha = 0.88f), RoundedCornerShape(3.dp))
+                                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        }
+                        Column(
+                            Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                video.title?.takeIf { it.isNotBlank() } ?: "YouTube video",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                video.channelName ?: "Subscribed channel",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            videoMetadataLine(video)?.let {
+                                Text(
+                                    it,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
