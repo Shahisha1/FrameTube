@@ -63,6 +63,21 @@ private data class HomeFeedVideo(val video: VideoMetadataResult, val fromSubscri
 
 private val discoveryTopics = listOf("Home", "Subs", "All", "Music", "Gaming", "Mixes", "Live", "Technology", "Learning", "Recently uploaded")
 
+private fun videoMetadataLine(video: VideoMetadataResult): String? {
+    val parts = buildList {
+        video.viewCount?.takeIf { it >= 0L }?.let { add("${compactVideoCount(it)} views") }
+        video.textualUploadDate?.takeIf { it.isNotBlank() }?.let(::add)
+    }
+    return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
+}
+
+private fun compactVideoCount(value: Long): String = when {
+    value >= 1_000_000_000L -> "%.1fB".format(value / 1_000_000_000.0)
+    value >= 1_000_000L -> "%.1fM".format(value / 1_000_000.0)
+    value >= 1_000L -> "%.1fK".format(value / 1_000.0)
+    else -> value.toString()
+}
+
 @Composable
 fun HomeScreen(
     vm: LibraryViewModel,
@@ -230,8 +245,10 @@ fun HomeScreen(
                     videoId = video.videoId,
                     title = video.title?.takeIf { it.isNotBlank() } ?: "Untitled video",
                     thumbnail = video.thumbnailUrl,
-                    channel = "YouTube",
+                    channel = video.channelName ?: if (item.fromSubscriptions) "Latest upload" else "YouTube",
                     duration = video.durationSeconds,
+                    channelAvatar = video.channelAvatarUrl,
+                    metadataLine = videoMetadataLine(video),
                     onClick = {
                         if (item.fromSubscriptions) onOpenVideo(video.videoId)
                         else onOpenRecommendation(video.videoId, recommendations)
@@ -274,6 +291,7 @@ fun HomeVideoItem(
     channel: String,
     duration: Long?,
     channelAvatar: String? = null,
+    metadataLine: String? = null,
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
@@ -336,6 +354,15 @@ fun HomeVideoItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                if (!metadataLine.isNullOrBlank()) {
+                    Text(
+                        metadataLine,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
             Box {
                 IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(36.dp)) {

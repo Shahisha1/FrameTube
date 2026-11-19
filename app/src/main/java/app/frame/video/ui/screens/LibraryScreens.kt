@@ -482,7 +482,10 @@ fun SearchScreen(
                                     durationSeconds = result.durationSeconds,
                                     source = "YOUTUBE"
                                 ),
-                                onOpenVideo
+                                onOpenVideo,
+                                channelName = result.channelName,
+                                channelAvatarUrl = result.channelAvatarUrl,
+                                metadataLine = videoMetadataLine(result)
                             )
                         }
                     }
@@ -567,8 +570,10 @@ fun SubscriptionsScreen(
                         videoId = video.videoId,
                         title = video.title?.takeIf { it.isNotBlank() } ?: "YouTube video",
                         thumbnail = video.thumbnailUrl,
-                        channel = "Latest upload",
+                        channel = video.channelName ?: "Latest upload",
                         duration = video.durationSeconds,
+                        channelAvatar = video.channelAvatarUrl,
+                        metadataLine = videoMetadataLine(video),
                         onClick = { onOpenVideo(video.videoId) }
                     )
                 }

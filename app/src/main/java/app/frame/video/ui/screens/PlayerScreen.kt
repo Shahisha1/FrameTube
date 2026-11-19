@@ -210,6 +210,13 @@ fun PlayerScreen(
                     ) {
                         Text(videoTitle, style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                         Text(profile.name, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                        metadata?.let { videoMetadata ->
+                            val details = listOfNotNull(
+                                videoMetadata.viewCount?.takeIf { it >= 0L }?.let { "${compactVideoCount(it)} views" },
+                                videoMetadata.textualUploadDate?.takeIf { it.isNotBlank() }
+                            ).joinToString(" · ")
+                            if (details.isNotBlank()) Text(details, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                        }
                         profile.subscriberCount?.let {
                             Text("${formatChannelCount(it)} subscribers", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
@@ -232,6 +239,31 @@ fun PlayerScreen(
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                     ) {
                         Text(if (subscribed) "Subscribed" else "Subscribe")
+                    }
+                }
+            } else if (!metadata?.channelName.isNullOrBlank()) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    if (!metadata?.channelAvatarUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = metadata?.channelAvatarUrl,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp).clip(CircleShape)
+                        )
+                    } else {
+                        Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(48.dp))
+                    }
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(videoTitle, style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                        Text(metadata?.channelName.orEmpty(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        val details = listOfNotNull(
+                            metadata?.viewCount?.takeIf { it >= 0L }?.let { "${compactVideoCount(it)} views" },
+                            metadata?.textualUploadDate?.takeIf { it.isNotBlank() }
+                        ).joinToString(" · ")
+                        if (details.isNotBlank()) Text(details, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             } else {
@@ -546,6 +578,13 @@ private fun formatPlayerTime(milliseconds: Long): String {
     val minutes = (seconds % 3_600) / 60
     val remainder = seconds % 60
     return if (hours > 0) "%d:%02d:%02d".format(hours, minutes, remainder) else "%d:%02d".format(minutes, remainder)
+}
+
+private fun compactVideoCount(count: Long): String = when {
+    count >= 1_000_000_000L -> "%.1fB".format(count / 1_000_000_000.0)
+    count >= 1_000_000L -> "%.1fM".format(count / 1_000_000.0)
+    count >= 1_000L -> "%.1fK".format(count / 1_000.0)
+    else -> count.toString()
 }
 
 private fun formatChannelCount(count: Long): String = when {

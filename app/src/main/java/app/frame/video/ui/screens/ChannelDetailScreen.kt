@@ -113,6 +113,7 @@ fun ChannelDetailScreen(
                                 channel = profile.name,
                                 duration = video.durationSeconds,
                                 channelAvatar = profile.avatarUrl,
+                                metadataLine = videoMetadataLine(video),
                                 onClick = { onOpenVideo(video.videoId) }
                             )
                         }
