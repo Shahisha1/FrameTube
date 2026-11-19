@@ -281,50 +281,67 @@ class DiscoveryViewModel(
             repo.observeSubscribedChannels().collectLatest { channels -> loadFeed(channels) }
         }
         viewModelScope.launch {
-            repo.observeRecentHistory(5).collectLatest { history ->
-                loadDiscovery(history.firstOrNull()?.title)
-            }
+            repo.observeRecentHistory(12).collectLatest { history -> loadDiscovery(history) }
         }
     }
 
     fun refresh() {
         viewModelScope.launch {
             loadFeed(repo.observeSubscribedChannels().first())
-            loadDiscovery(repo.observeRecentHistory(5).first().firstOrNull()?.title)
+            loadDiscovery(repo.observeRecentHistory(12).first())
         }
     }
 
-    private suspend fun loadDiscovery(lastWatchedTitle: String?) {
-        val context = lastWatchedTitle?.takeIf { it.isNotBlank() && it.length > 2 }?.take(90)
-        val queries = listOfNotNull(context, "popular videos", "trending videos").distinct()
+    private suspend fun loadDiscovery(history: List<VideoEntity>) {
+        val titles = history.mapNotNull { it.title.takeIf(String::isNotBlank) }
+        val queries = app.frame.video.domain.HomeRecommendationEngine.buildQueries(titles)
+        val personalQueries = queries.filterNot { it in setOf("popular videos", "trending videos") }
+        val context = personalQueries.firstOrNull()
         _state.value = _state.value.copy(discoveryLoading = true, discoveryError = null)
+
         try {
-            var lastError: String? = null
-            var successfulQuery: String? = null
-            var videos: List<VideoMetadataResult> = emptyList()
-            for (query in queries) {
-                val result = withTimeoutOrNull(12_000) { videoProvider.searchVideos(query) }
-                if (result == null) {
-                    lastError = "Discovery took too long. Check your connection and try again."
-                    continue
-                }
-                if (result.items.isNotEmpty()) {
-                    videos = result.items.distinctBy { it.videoId }.take(24)
-                    successfulQuery = query
-                    break
-                }
-                if (result.errorMessage != null) lastError = result.errorMessage
+            // Bound concurrency: several independent topic searches run together,
+            // without opening an unbounded number of extractor requests.
+            val gate = Semaphore(3)
+            val responses = coroutineScope {
+                queries.map { query ->
+                    async {
+                        gate.withPermit {
+                            val response = withTimeoutOrNull(12_000) {
+                                videoProvider.searchVideos(query)
+                            }
+                            query to response
+                        }
+                    }
+                }.awaitAll()
             }
+
+            val videos = app.frame.video.domain.HomeRecommendationEngine.interleave(
+                batches = responses.mapNotNull { (_, response) -> response?.items },
+                limit = 36
+            )
+            val error = responses.mapNotNull { (_, response) -> response?.errorMessage }.firstOrNull()
+            val timedOut = responses.any { it.second == null }
+
             _state.value = _state.value.copy(
                 discoveryLoading = false,
                 discoveredVideos = videos,
-                discoveryError = if (videos.isEmpty()) lastError ?: "No public videos were returned. Try refreshing or search for a topic." else null,
-                discoveryContext = if (successfulQuery == context && context != null) "Because you watched $context" else "Picked for you"
+                discoveryError = if (videos.isEmpty()) {
+                    error ?: if (timedOut) {
+                        "Discovery took too long. Check your connection and try again."
+                    } else {
+                        "No public videos were returned. Try refreshing or search for a topic."
+                    }
+                } else null,
+                discoveryContext = context?.let { "Based on: $it" } ?: "Picked for you"
             )
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            _state.value = _state.value.copy(discoveryLoading = false, discoveryError = "Could not load discovery videos. Check your connection and try again.")
+            _state.value = _state.value.copy(
+                discoveryLoading = false,
+                discoveryError = "Could not load discovery videos. Check your connection and try again."
+            )
         }
     }
 
