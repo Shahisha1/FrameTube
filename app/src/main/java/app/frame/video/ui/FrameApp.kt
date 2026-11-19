@@ -116,10 +116,10 @@ fun FrameApp(
     )
     val backStack by nav.currentBackStackEntryAsState()
     val destination = backStack?.destination
-    val showNavigation = items.any { destination?.hierarchy?.any { d -> d.route == it.route } == true }
     val isShortsDestination = destination?.hierarchy?.any { it.route == Routes.SHORTS } == true
     val isSearchDestination = destination?.hierarchy?.any { it.route == Routes.SEARCH } == true
     val isWatchDestination = destination?.hierarchy?.any { it.route == Routes.PLAYER || it.route == Routes.DETAILS || it.route == Routes.LOCAL_PLAYER } == true
+    val showNavigation = !isWatchDestination
     val openVideo = { id: String -> nav.navigate(Routes.player(id)) }
     val openImport = { nav.navigate(Routes.IMPORT) }
     val openSearch = { nav.navigate(Routes.SEARCH) }
