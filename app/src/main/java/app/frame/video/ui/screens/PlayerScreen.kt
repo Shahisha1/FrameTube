@@ -40,6 +40,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -55,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -316,6 +318,7 @@ private fun ExoSurface(videoId: String, source: PlaybackResolution.Ready, vm: Pl
     var durationMs by remember(player) { mutableStateOf(0L) }
     var speed by remember(player) { mutableStateOf(1f) }
     var scrubbing by remember(player) { mutableStateOf(false) }
+    var controlsVisible by remember(player) { mutableStateOf(true) }
 
     LaunchedEffect(player, videoId, sponsorBlockEnabled, sponsorBlockCategories) {
         sponsorSegments.clear()
@@ -361,6 +364,12 @@ private fun ExoSurface(videoId: String, source: PlaybackResolution.Ready, vm: Pl
             delay(500)
         }
     }
+    LaunchedEffect(controlsVisible, isPlaying) {
+        if (controlsVisible && isPlaying) {
+            delay(3_500)
+            controlsVisible = false
+        }
+    }
     LaunchedEffect(player) {
         while (true) {
             delay(10_000)
@@ -400,44 +409,106 @@ private fun ExoSurface(videoId: String, source: PlaybackResolution.Ready, vm: Pl
         }
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Box(
+        Modifier.fillMaxWidth().aspectRatio(16f / 9f)
+            .background(Color.Black)
+            .clickable { controlsVisible = !controlsVisible }
+    ) {
         AndroidView(
             factory = {
                 PlayerView(it).apply {
                     this.player = player
-                    useController = true
+                    useController = false
                     setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
                 }
             },
             update = { it.player = player },
-            modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(0.dp)).background(Color.Black)
+            modifier = Modifier.fillMaxSize()
         )
-        if (skipNotice != null) Text(skipNotice.orEmpty(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-        Slider(
-            value = positionMs.coerceIn(0L, durationMs.coerceAtLeast(1L)).toFloat(),
-            onValueChange = { scrubbing = true; positionMs = it.toLong() },
-            onValueChangeFinished = { player.seekTo(positionMs); scrubbing = false },
-            valueRange = 0f..durationMs.coerceAtLeast(1L).toFloat(),
-            enabled = durationMs > 0L
-        )
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(formatPlayerTime(positionMs), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
-            Text(formatPlayerTime(durationMs), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (controlsVisible) {
+            Box(
+                Modifier.fillMaxSize().background(
+                    Brush.verticalGradient(
+                        listOf(Color.Black.copy(alpha = 0.32f), Color.Transparent, Color.Black.copy(alpha = 0.58f))
+                    )
+                )
+            )
+            Row(
+                Modifier.align(Alignment.Center),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(26.dp)
+            ) {
+                IconButton(
+                    onClick = { player.seekBack(); controlsVisible = true },
+                    modifier = Modifier.size(48.dp).background(Color.Black.copy(alpha = 0.38f), CircleShape)
+                ) {
+                    Icon(Icons.Default.Replay10, contentDescription = "Back 10 seconds", tint = Color.White)
+                }
+                IconButton(
+                    onClick = {
+                        if (player.isPlaying) player.pause() else player.play()
+                        isPlaying = player.isPlaying
+                        controlsVisible = true
+                    },
+                    modifier = Modifier.size(58.dp).background(Color.Black.copy(alpha = 0.48f), CircleShape)
+                ) {
+                    Icon(
+                        if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        tint = Color.White,
+                        modifier = Modifier.size(34.dp)
+                    )
+                }
+                IconButton(
+                    onClick = { player.seekForward(); controlsVisible = true },
+                    modifier = Modifier.size(48.dp).background(Color.Black.copy(alpha = 0.38f), CircleShape)
+                ) {
+                    Icon(Icons.Default.Forward10, contentDescription = "Forward 10 seconds", tint = Color.White)
+                }
+            }
+            Column(
+                Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 12.dp, vertical = 7.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Slider(
+                    value = positionMs.coerceIn(0L, durationMs.coerceAtLeast(1L)).toFloat(),
+                    onValueChange = { scrubbing = true; positionMs = it.toLong(); controlsVisible = true },
+                    onValueChangeFinished = { player.seekTo(positionMs); scrubbing = false },
+                    valueRange = 0f..durationMs.coerceAtLeast(1L).toFloat(),
+                    enabled = durationMs > 0L,
+                    colors = SliderDefaults.colors(
+                        thumbColor = Color(0xFFFF0033),
+                        activeTrackColor = Color(0xFFFF0033),
+                        inactiveTrackColor = Color.White.copy(alpha = 0.48f)
+                    )
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(formatPlayerTime(positionMs), color = Color.White, style = MaterialTheme.typography.labelSmall)
+                    androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+                    TextButton(
+                        onClick = {
+                            val options = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
+                            val next = options[(options.indexOf(speed).coerceAtLeast(0) + 1) % options.size]
+                            speed = next
+                            player.playbackParameters = PlaybackParameters(next)
+                            controlsVisible = true
+                        }
+                    ) {
+                        Text("${speed}×", color = Color.White)
+                    }
+                    Text(formatPlayerTime(durationMs), color = Color.White, style = MaterialTheme.typography.labelSmall)
+                }
+            }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { player.seekBack() }) { Icon(Icons.Default.Replay10, contentDescription = "Back 10 seconds") }
-            IconButton(onClick = {
-                if (player.isPlaying) player.pause() else player.play()
-                isPlaying = player.isPlaying
-            }) { Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, contentDescription = if (isPlaying) "Pause" else "Play") }
-            IconButton(onClick = { player.seekForward() }) { Icon(Icons.Default.Forward10, contentDescription = "Forward 10 seconds") }
-            TextButton(onClick = {
-                val options = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
-                val next = options[(options.indexOf(speed).coerceAtLeast(0) + 1) % options.size]
-                speed = next
-                player.playbackParameters = PlaybackParameters(next)
-            }) { Text("${speed}×") }
+        if (skipNotice != null) {
+            Text(
+                skipNotice.orEmpty(),
+                modifier = Modifier.align(Alignment.TopStart).padding(10.dp)
+                    .background(Color.Black.copy(alpha = 0.58f), RoundedCornerShape(4.dp))
+                    .padding(horizontal = 8.dp, vertical = 5.dp),
+                color = Color.White,
+                style = MaterialTheme.typography.labelSmall
+            )
         }
     }
 }
