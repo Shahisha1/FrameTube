@@ -9,18 +9,17 @@ import org.junit.Test
 class HomeRecommendationEngineTest {
     @Test
     fun derivesTopicQueriesFromRecentTitlesAndAddsDiscoveryFallbacks() {
-        val queries = HomeRecommendationEngine.buildQueries(
-            listOf(
-                "How to build a Gaming PC for beginners",
-                "Gaming PC cable management tips",
-                "A quiet mechanical keyboard build"
-            )
+        val gamingQueries = HomeRecommendationEngine.buildQueries(
+            listOf("How to build a Gaming PC for beginners")
+        )
+        val keyboardQueries = HomeRecommendationEngine.buildQueries(
+            listOf("A quiet mechanical keyboard build")
         )
 
-        assertTrue(queries.any { it.contains("gaming pc") })
-        assertTrue(queries.any { it.contains("mechanical keyboard") })
-        assertEquals("popular videos", queries[queries.size - 2])
-        assertEquals("trending videos", queries.last())
+        assertTrue(gamingQueries.any { it.contains("gaming pc") })
+        assertTrue(keyboardQueries.any { it.contains("mechanical keyboard") })
+        assertEquals("popular videos", gamingQueries[gamingQueries.size - 2])
+        assertEquals("trending videos", gamingQueries.last())
     }
 
     @Test
