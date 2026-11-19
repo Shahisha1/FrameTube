@@ -60,6 +60,7 @@ import app.frame.video.data.sponsorblock.SponsorSegment
 import app.frame.video.ui.components.openOnYouTube
 import app.frame.video.ui.viewmodel.PlayerUiState
 import app.frame.video.ui.viewmodel.PlayerViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 
 @Composable
@@ -149,6 +150,8 @@ private fun ExoSurface(videoId: String, source: PlaybackResolution.Ready, vm: Pl
         if (sponsorBlockEnabled && sponsorBlockCategories.isNotEmpty()) {
             try {
                 sponsorSegments.addAll(SponsorBlockClient().getSegments(videoId, sponsorBlockCategories))
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (_: Exception) {
                 // Playback remains available if the optional community API is unavailable.
             }

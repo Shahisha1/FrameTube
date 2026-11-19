@@ -108,6 +108,7 @@ fun SettingsScreen(
                     )
                 }
             }
+            Text("When enabled, the SponsorBlock service receives the current video ID and your network IP address. No FrameTube account or library data is sent.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("Segment timing is community-submitted and may be inaccurate.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
