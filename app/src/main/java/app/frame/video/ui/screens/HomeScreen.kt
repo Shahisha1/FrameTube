@@ -178,9 +178,10 @@ fun HomeScreen(
             }
             else -> items(subscriptions, key = { "sub-" + it.videoId }) { video ->
                 HomeVideoItem(
+                    videoId = video.videoId,
                     title = video.title?.takeIf { it.isNotBlank() } ?: "Untitled video",
                     thumbnail = video.thumbnailUrl,
-                    channel = video.channelId?.takeIf { it.isNotBlank() } ?: "YouTube",
+                    channel = "YouTube",
                     duration = video.durationSeconds,
                     onClick = { onOpenVideo(video.videoId) }
                 )
