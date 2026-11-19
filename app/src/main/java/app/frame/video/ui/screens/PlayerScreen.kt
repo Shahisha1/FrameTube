@@ -1,13 +1,21 @@
 package app.frame.video.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -18,6 +26,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -39,24 +49,52 @@ import app.frame.video.ui.viewmodel.PlayerViewModel
 fun PlayerScreen(videoId: String, vm: PlayerViewModel, onBack: () -> Unit, onOpenSettings: () -> Unit) {
     val context = LocalContext.current
     val state by vm.state.collectAsStateWithLifecycle()
-    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(
+        Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("NOW PLAYING", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            Text("Video player", style = MaterialTheme.typography.headlineSmall)
+        }
         when (val s = state) {
-            PlayerUiState.Loading -> Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+            PlayerUiState.Loading -> Card(
+                modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        CircularProgressIndicator()
+                        Text("Finding a playable source", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
             }
             is PlayerUiState.Ready -> {
                 ExoSurface(s.source, vm)
                 Text(s.source.sourceLabel, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            is PlayerUiState.Failed -> {
-                Text("Can't play this video", style = MaterialTheme.typography.titleLarge)
-                Text(s.message)
-                Button(onClick = vm::load) { Text("Try again") }
+            is PlayerUiState.Failed -> Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Can't play this video", style = MaterialTheme.typography.titleLarge)
+                    Text(s.message, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Button(onClick = vm::load) { Text("Try again") }
+                }
             }
         }
-        OutlinedButton(onClick = { openOnYouTube(context, videoId) }) { Text("Open on YouTube") }
-        OutlinedButton(onClick = onOpenSettings) { Text("Playback settings") }
-        OutlinedButton(onClick = onBack) { Text("Back") }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            OutlinedButton(onClick = { openOnYouTube(context, videoId) }, modifier = Modifier.weight(1f)) {
+                androidx.compose.material3.Icon(Icons.Default.OpenInNew, contentDescription = null)
+                Text("YouTube", modifier = Modifier.padding(start = 6.dp))
+            }
+            OutlinedButton(onClick = onOpenSettings, modifier = Modifier.weight(1f)) {
+                androidx.compose.material3.Icon(Icons.Default.Settings, contentDescription = null)
+                Text("Settings", modifier = Modifier.padding(start = 6.dp))
+            }
+        }
+        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Back to video") }
     }
 }
 
@@ -65,7 +103,6 @@ private fun ExoSurface(source: PlaybackResolution.Ready, vm: PlayerViewModel) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val player = remember(source.uri) {
-        // No cache is configured on purpose: Frame does not store video.
         ExoPlayer.Builder(context).build().apply {
             val item = MediaItem.Builder().setUri(source.uri).apply { source.mimeType?.let { setMimeType(it) } }.build()
             setMediaItem(item)
@@ -94,8 +131,14 @@ private fun ExoSurface(source: PlaybackResolution.Ready, vm: PlayerViewModel) {
         }
     }
     AndroidView(
-        factory = { PlayerView(it).apply { this.player = player } },
+        factory = {
+            PlayerView(it).apply {
+                this.player = player
+                useController = true
+                setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
+            }
+        },
         update = { it.player = player },
-        modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f)
+        modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(14.dp)).background(Color.Black)
     )
 }

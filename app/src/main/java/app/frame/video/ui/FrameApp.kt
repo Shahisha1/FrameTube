@@ -3,6 +3,7 @@ package app.frame.video.ui
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
@@ -41,10 +42,12 @@ import app.frame.video.core.datastore.PipedConfig
 import app.frame.video.ui.navigation.Routes
 import app.frame.video.ui.screens.ChannelsScreen
 import app.frame.video.ui.screens.DetailsScreen
+import app.frame.video.ui.screens.DownloadsScreen
 import app.frame.video.ui.screens.HistoryScreen
 import app.frame.video.ui.screens.HomeScreen
 import app.frame.video.ui.screens.ImportScreen
 import app.frame.video.ui.screens.LikedScreen
+import app.frame.video.ui.screens.LocalDownloadPlayerScreen
 import app.frame.video.ui.screens.PlayerScreen
 import app.frame.video.ui.screens.PlaylistDetailScreen
 import app.frame.video.ui.screens.PlaylistsScreen
@@ -99,6 +102,9 @@ fun FrameApp(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { nav.navigate(Routes.DOWNLOADS) }) {
+                        Icon(Icons.Default.Download, contentDescription = "Downloads")
+                    }
                     IconButton(onClick = openSearch) { Icon(Icons.Default.Search, contentDescription = "Search videos") }
                     IconButton(onClick = { nav.navigate(Routes.SETTINGS) }) { Icon(Icons.Default.Settings, contentDescription = "Settings") }
                 },
@@ -140,6 +146,9 @@ fun FrameApp(
             composable(Routes.HISTORY) { HistoryScreen(library, openVideo, onImport = { openImport() }) }
             composable(Routes.LIKED) { LikedScreen(library, openVideo, onImport = { openImport() }) }
             composable(Routes.SEARCH) { SearchScreen(search, openVideo) }
+            composable(Routes.DOWNLOADS) {
+                DownloadsScreen(container.downloads) { id -> nav.navigate(Routes.localPlayer(id)) }
+            }
             composable(Routes.SETTINGS) {
                 SettingsScreen(
                     darkTheme = darkTheme,
@@ -163,6 +172,11 @@ fun FrameApp(
                 val id = entry.arguments?.getString("videoId").orEmpty()
                 val vm: PlayerViewModel = viewModel(key = "player-$id", factory = viewModelFactory { initializer { PlayerViewModel(id, container.providerManager) } })
                 PlayerScreen(id, vm, onBack = { nav.popBackStack() }, onOpenSettings = { nav.navigate(Routes.SETTINGS) })
+            }
+            composable(Routes.LOCAL_PLAYER) { entry ->
+                val id = entry.arguments?.getString("downloadId")?.toLongOrNull()
+                if (id != null) LocalDownloadPlayerScreen(id, container.downloads) { nav.popBackStack() }
+                else Text("Invalid download")
             }
         }
     }

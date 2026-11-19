@@ -6,6 +6,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -16,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import app.frame.video.domain.provider.MetadataAvailability
@@ -42,40 +46,44 @@ fun DetailsScreen(
     }
     val idOnly = video == null || video?.title == videoId
     val title = if (idOnly) online?.title ?: "Video $videoId" else video!!.title
+    val thumbnail = online?.thumbnailUrl ?: video?.thumbnailUrl
 
     Column(
-        Modifier.fillMaxSize().padding(20.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        val thumbnail = online?.thumbnailUrl ?: video?.thumbnailUrl
+        Text("VIDEO DETAILS", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         if (!thumbnail.isNullOrBlank()) {
-            VideoThumbnail(thumbnail, Modifier.fillMaxWidth().aspectRatio(16f / 9f))
+            VideoThumbnail(
+                thumbnail,
+                Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(14.dp))
+            )
         }
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("VIDEO DETAILS", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             Text(title, style = MaterialTheme.typography.headlineSmall)
-            Text("Video ID  ·  $videoId", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("YouTube video · $videoId", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Card(
             modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Text(
                 when {
-                    online == null -> "Loading live details from YouTube…"
+                    online == null -> "Loading video details…"
                     online?.availability == MetadataAvailability.AVAILABLE ->
-                        "Details loaded from YouTube through NewPipe Extractor. Your saved library entry stays on this device."
+                        "Details loaded through NewPipe Extractor. Your saved library entry stays on this device."
                     idOnly ->
-                        "This entry came from your Takeout file with no title. Frame could not load live details, but the saved entry remains in your library."
+                        "This entry came from Takeout with no title. Frame could not load live details, but the saved entry remains in your library."
                     else ->
-                        "This entry came from your Takeout file. Live details could not be loaded; the saved entry remains in your library."
+                        "This entry came from Takeout. Live details could not be loaded; the saved entry remains in your library."
                 },
                 modifier = Modifier.padding(16.dp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium
             )
         }
-        Button(onClick = onPlay, modifier = Modifier.fillMaxWidth()) { Text("Try unofficial playback") }
+        Button(onClick = onPlay, modifier = Modifier.fillMaxWidth()) { Text("Play video") }
         OutlinedButton(onClick = { openOnYouTube(context, videoId) }, modifier = Modifier.fillMaxWidth()) {
             Text("Open on YouTube")
         }

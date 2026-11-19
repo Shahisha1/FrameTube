@@ -11,10 +11,13 @@ object Routes {
     const val SEARCH = "search"
     const val SETTINGS = "settings"
     const val IMPORT = "import"
+    const val DOWNLOADS = "downloads"
     const val DETAILS = "details/{videoId}"
     const val PLAYER = "player/{videoId}"
+    const val LOCAL_PLAYER = "local-player/{downloadId}"
     const val PLAYLIST = "playlist/{playlistId}"
     fun details(videoId: String) = "details/${Uri.encode(videoId)}"
     fun player(videoId: String) = "player/${Uri.encode(videoId)}"
+    fun localPlayer(downloadId: Long) = "local-player/$downloadId"
     fun playlist(id: String) = "playlist/${Uri.encode(id)}"
 }
