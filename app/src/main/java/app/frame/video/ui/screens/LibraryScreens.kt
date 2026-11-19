@@ -153,7 +153,7 @@ fun PlaylistDetailScreen(
     var description by remember(playlist?.description) { mutableStateOf(playlist?.description.orEmpty()) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    val cover = items[0]?.thumbnailUrl
+    val cover = if (items.itemCount > 0) items[0]?.thumbnailUrl else null
     Column(Modifier.fillMaxSize()) {
         Box(
             Modifier.fillMaxWidth().height(176.dp).background(MaterialTheme.colorScheme.surfaceVariant)
