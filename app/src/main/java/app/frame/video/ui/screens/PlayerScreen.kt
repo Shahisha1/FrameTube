@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -164,7 +165,7 @@ fun PlayerScreen(
                     }
                 }
             }
-            is PlayerUiState.Ready -> ExoSurface(videoId, s.source, vm, session, preferences)
+            is PlayerUiState.Ready -> ExoSurface(videoId, s.source, vm, session, preferences, onBack)
             is PlayerUiState.Failed -> Card(
                 modifier = Modifier.fillMaxWidth().padding(12.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
@@ -317,7 +318,7 @@ fun PlayerScreen(
 }
 
 @Composable
-private fun ExoSurface(videoId: String, source: PlaybackResolution.Ready, vm: PlayerViewModel, session: PlaybackSession, preferences: FramePreferences) {
+private fun ExoSurface(videoId: String, source: PlaybackResolution.Ready, vm: PlayerViewModel, session: PlaybackSession, preferences: FramePreferences, onBack: () -> Unit) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val player = session.player
     LaunchedEffect(videoId, source.uri) {
@@ -448,6 +449,13 @@ private fun ExoSurface(videoId: String, source: PlaybackResolution.Ready, vm: Pl
                     )
                 )
             )
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier.align(Alignment.TopStart).padding(8.dp)
+                    .background(Color.Black.copy(alpha = 0.42f), CircleShape)
+            ) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Back to videos", tint = Color.White)
+            }
             Row(
                 Modifier.align(Alignment.Center),
                 verticalAlignment = Alignment.CenterVertically,
