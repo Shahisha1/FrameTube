@@ -94,10 +94,10 @@ fun VideoThumbnail(url: String?, modifier: Modifier = Modifier) {
 fun VideoRow(
     video: VideoEntity,
     onOpen: (String) -> Unit,
-    trailingContent: (@Composable () -> Unit)? = null,
     channelName: String? = null,
     channelAvatarUrl: String? = null,
-    metadataLine: String? = null
+    metadataLine: String? = null,
+    trailingContent: (@Composable () -> Unit)? = null
 ) {
     val title = video.title.takeIf { it != video.id } ?: "Video ${video.id}"
     Row(
