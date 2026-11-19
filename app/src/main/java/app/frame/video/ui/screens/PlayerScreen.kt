@@ -180,8 +180,6 @@ fun PlayerScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(videoTitle, style = MaterialTheme.typography.titleLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-            Text("YouTube video · $videoId", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-
             channel?.let { profile ->
                 Row(
                     Modifier.fillMaxWidth().padding(vertical = 5.dp),
