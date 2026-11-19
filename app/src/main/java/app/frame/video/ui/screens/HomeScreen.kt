@@ -63,7 +63,7 @@ private data class HomeFeedVideo(val video: VideoMetadataResult, val fromSubscri
 
 private val discoveryTopics = listOf("Home", "Subs", "All", "Music", "Gaming", "Mixes", "Live", "Technology", "Learning", "Recently uploaded")
 
-private fun videoMetadataLine(video: VideoMetadataResult): String? {
+fun videoMetadataLine(video: VideoMetadataResult): String? {
     val parts = buildList {
         video.viewCount?.takeIf { it >= 0L }?.let { add("${compactVideoCount(it)} views") }
         video.textualUploadDate?.takeIf { it.isNotBlank() }?.let(::add)
