@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.frame.video.data.local.VideoEntity
+import app.frame.video.domain.provider.VideoMetadataResult
 import app.frame.video.ui.components.VideoRow
 import app.frame.video.ui.viewmodel.DiscoveryViewModel
 import app.frame.video.ui.viewmodel.LibraryViewModel
@@ -48,6 +49,7 @@ fun HomeScreen(
     onOpenSearch: () -> Unit,
     onExploreTopic: (String) -> Unit,
     onOpenVideo: (String) -> Unit,
+    onOpenRecommendation: (String, List<VideoMetadataResult>) -> Unit = { id, _ -> onOpenVideo(id) },
     hideShorts: Boolean = false,
     mutedKeywords: String = "",
     maxPerChannel: Int = 3
@@ -145,7 +147,7 @@ fun HomeScreen(
                         durationSeconds = video.durationSeconds,
                         source = "YOUTUBE"
                     ),
-                    onOpenVideo
+                    { id -> onOpenRecommendation(id, recommendations) }
                 )
             }
         }

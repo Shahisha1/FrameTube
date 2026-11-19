@@ -55,6 +55,7 @@ import app.frame.video.core.datastore.FramePreferences
 import app.frame.video.core.provider.PlaybackResolution
 import app.frame.video.core.player.PlaybackSession
 import app.frame.video.domain.playback.PlaybackQueueEntry
+import app.frame.video.domain.playback.PlaybackQueueMode
 import app.frame.video.data.sponsorblock.SponsorBlockClient
 import app.frame.video.data.sponsorblock.SponsorSegment
 import app.frame.video.ui.components.openOnYouTube
@@ -70,10 +71,23 @@ fun PlayerScreen(
     session: PlaybackSession,
     preferences: FramePreferences,
     onBack: () -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    onQueueItemChanged: (String) -> Unit
 ) {
     val context = LocalContext.current
     val state by vm.state.collectAsStateWithLifecycle()
+    val sessionState by session.state.collectAsStateWithLifecycle()
+    LaunchedEffect(sessionState.currentVideoId, sessionState.queue.mode) {
+        val nextId = sessionState.currentVideoId
+        if (
+            nextId != null &&
+            nextId != videoId &&
+            sessionState.queue.current?.videoId == nextId &&
+            sessionState.queue.mode in setOf(PlaybackQueueMode.USER, PlaybackQueueMode.AUTOPLAY)
+        ) {
+            onQueueItemChanged(nextId)
+        }
+    }
     Column(Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("NOW PLAYING", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
@@ -125,7 +139,7 @@ private fun ExoSurface(videoId: String, source: PlaybackResolution.Ready, vm: Pl
     val lifecycleOwner = LocalLifecycleOwner.current
     val player = session.player
     LaunchedEffect(videoId, source.uri) {
-        session.playSingle(PlaybackQueueEntry(videoId, "Video"), source, vm.positionMs)
+        session.playQueued(PlaybackQueueEntry(videoId, "Video"), source, vm.positionMs)
     }
     val sponsorBlockEnabled by preferences.sponsorBlockEnabled.collectAsStateWithLifecycle(initialValue = false)
     val sponsorBlockCategories by preferences.sponsorBlockCategories.collectAsStateWithLifecycle(initialValue = FramePreferences.DEFAULT_SPONSORBLOCK_CATEGORIES)

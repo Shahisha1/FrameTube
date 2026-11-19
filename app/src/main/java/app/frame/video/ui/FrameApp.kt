@@ -46,6 +46,8 @@ import androidx.navigation.compose.rememberNavController
 import app.frame.video.AppContainer
 import app.frame.video.core.datastore.FramePreferences
 import app.frame.video.core.datastore.PipedConfig
+import app.frame.video.domain.playback.PlaybackQueueEntry
+import app.frame.video.domain.playback.PlaybackQueueMode
 import app.frame.video.ui.navigation.Routes
 import app.frame.video.ui.screens.ChannelsScreen
 import app.frame.video.ui.screens.ChannelDetailScreen
@@ -167,6 +169,14 @@ fun FrameApp(
                             openSearch()
                         },
                         onOpenVideo = openVideo,
+                        onOpenRecommendation = { id, videos ->
+                            val entries = videos.map {
+                                PlaybackQueueEntry(it.videoId, it.title.orEmpty(), it.thumbnailUrl)
+                            }
+                            val startIndex = entries.indexOfFirst { it.videoId == id }.coerceAtLeast(0)
+                            container.playbackSession.setQueue(entries, PlaybackQueueMode.AUTOPLAY, startIndex)
+                            openVideo(id)
+                        },
                         hideShorts = hideShorts,
                         mutedKeywords = mutedKeywords,
                         maxPerChannel = maxPerChannel
@@ -246,7 +256,20 @@ fun FrameApp(
                 composable(Routes.PLAYER) { entry ->
                     val id = entry.arguments?.getString("videoId").orEmpty()
                     val vm: PlayerViewModel = viewModel(key = "player-$id", factory = viewModelFactory { initializer { PlayerViewModel(id, container.providerManager, container.library) } })
-                    PlayerScreen(id, vm, container.playbackSession, container.preferences, onBack = { nav.popBackStack() }, onOpenSettings = { nav.navigate(Routes.SETTINGS) })
+                    PlayerScreen(
+                        id,
+                        vm,
+                        container.playbackSession,
+                        container.preferences,
+                        onBack = { nav.popBackStack() },
+                        onOpenSettings = { nav.navigate(Routes.SETTINGS) },
+                        onQueueItemChanged = { nextId ->
+                            nav.navigate(Routes.player(nextId)) {
+                                popUpTo(Routes.PLAYER) { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        }
+                    )
                 }
                 composable(Routes.LOCAL_PLAYER) { entry ->
                     val id = entry.arguments?.getString("downloadId")?.toLongOrNull()
