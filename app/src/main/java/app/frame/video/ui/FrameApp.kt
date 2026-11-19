@@ -7,21 +7,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Subscriptions
 import androidx.compose.material.icons.filled.VideoLibrary
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -117,23 +115,33 @@ fun FrameApp(
         topBar = {
             if (!isShortsDestination) TopAppBar(
                 title = {
-                    Column {
-                        Text("FrameTube", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
-                        Text("YOUR VIDEO SPACE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        androidx.compose.foundation.layout.Box(
+                            Modifier.padding(end = 6.dp)
+                                .background(MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.RoundedCornerShape(6.dp))
+                                .padding(horizontal = 5.dp, vertical = 2.dp)
+                        ) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(20.dp))
+                        }
+                        Text("FrameTube", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                     }
                 },
                 actions = {
-                    IconButton(onClick = { nav.navigate(Routes.DOWNLOADS) }) { Icon(Icons.Default.Download, contentDescription = "Downloads") }
                     IconButton(onClick = openSearch) { Icon(Icons.Default.Search, contentDescription = "Search videos") }
+                    IconButton(onClick = { nav.navigate(Routes.DOWNLOADS) }) { Icon(Icons.Default.Download, contentDescription = "Downloads") }
                     IconButton(onClick = { nav.navigate(Routes.SETTINGS) }) { Icon(Icons.Default.Settings, contentDescription = "Settings") }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background, titleContentColor = MaterialTheme.colorScheme.onSurface)
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
+                )
             )
         },
         bottomBar = {
             if (showNavigation && !isShortsDestination) NavigationBar(
                 modifier = Modifier.height(64.dp),
-                containerColor = MaterialTheme.colorScheme.surface,
+                containerColor = MaterialTheme.colorScheme.background,
                 contentColor = MaterialTheme.colorScheme.onSurface,
                 tonalElevation = 0.dp
             ) {
@@ -148,8 +156,15 @@ fun FrameApp(
                             }
                         },
                         icon = { Icon(item.icon, contentDescription = item.label) },
-                        label = { Text(item.label) },
-                        alwaysShowLabel = false
+                        label = { Text(item.label, maxLines = 1) },
+                        alwaysShowLabel = true,
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.onSurface,
+                            selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurface,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            indicatorColor = MaterialTheme.colorScheme.background
+                        )
                     )
                 }
             }
@@ -170,9 +185,7 @@ fun FrameApp(
                         },
                         onOpenVideo = openVideo,
                         onOpenRecommendation = { id, videos ->
-                            val entries = videos.map {
-                                PlaybackQueueEntry(it.videoId, it.title.orEmpty(), it.thumbnailUrl)
-                            }
+                            val entries = videos.map { PlaybackQueueEntry(it.videoId, it.title.orEmpty(), it.thumbnailUrl) }
                             val startIndex = entries.indexOfFirst { it.videoId == id }.coerceAtLeast(0)
                             container.playbackSession.setQueue(entries, PlaybackQueueMode.AUTOPLAY, startIndex)
                             openVideo(id)

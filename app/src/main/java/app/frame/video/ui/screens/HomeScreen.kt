@@ -1,5 +1,6 @@
 package app.frame.video.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -7,13 +8,18 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
@@ -29,16 +35,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.frame.video.data.local.VideoEntity
 import app.frame.video.domain.provider.VideoMetadataResult
-import app.frame.video.ui.components.VideoRow
 import app.frame.video.ui.viewmodel.DiscoveryViewModel
 import app.frame.video.ui.viewmodel.LibraryViewModel
+import coil.compose.AsyncImage
 
-private val discoveryTopics = listOf("All", "Gaming", "Music", "Technology", "Education", "News", "Sports")
+private val discoveryTopics = listOf("All", "Music", "Gaming", "Mixes", "Live", "Technology", "Learning", "Recently uploaded")
 
 @Composable
 fun HomeScreen(
@@ -70,26 +80,14 @@ fun HomeScreen(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 28.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        contentPadding = PaddingValues(bottom = 22.dp),
+        verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
         item {
             Row(
-                Modifier.fillMaxWidth().padding(start = 18.dp, end = 10.dp, top = 10.dp, bottom = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text("For you", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                    Text("Videos picked from discovery and your subscriptions", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                IconButton(onClick = discovery::refresh) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Refresh feed")
-                }
-            }
-        }
-        item {
-            Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 14.dp),
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 discoveryTopics.forEach { topic ->
@@ -98,8 +96,10 @@ fun HomeScreen(
                         onClick = {
                             selectedTopic = topic
                             if (topic != "All") onExploreTopic(topic.lowercase())
+                            else discovery.refresh()
                         },
-                        label = { Text(topic) }
+                        label = { Text(topic, maxLines = 1) },
+                        shape = RoundedCornerShape(8.dp)
                     )
                 }
             }
@@ -107,29 +107,33 @@ fun HomeScreen(
 
         if (recent.isNotEmpty()) {
             item {
-                Text("Continue watching", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 18.dp, top = 8.dp))
+                SectionHeading("Continue watching", onRefresh = null)
             }
-            items(recent, key = { "recent-" + it.id }) { VideoRow(it, onOpenVideo) }
+            items(recent.take(4), key = { "recent-" + it.id }) { video ->
+                HomeVideoItem(
+                    title = video.title,
+                    thumbnail = video.thumbnailUrl,
+                    channel = "Continue watching",
+                    duration = video.durationSeconds,
+                    onClick = { onOpenVideo(video.id) }
+                )
+            }
         }
 
         item {
-            Row(
-                Modifier.fillMaxWidth().padding(start = 18.dp, end = 10.dp, top = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(feed.discoveryContext ?: "Recommended videos", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                    Text("Discover something new", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                IconButton(onClick = discovery::refresh) { Icon(Icons.Default.Refresh, contentDescription = "Refresh recommendations") }
-            }
+            SectionHeading(
+                feed.discoveryContext ?: "Recommended for you",
+                onRefresh = discovery::refresh
+            )
         }
         when {
             feed.discoveryLoading && recommendations.isEmpty() -> item {
-                Box(Modifier.fillMaxWidth().padding(vertical = 28.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                Box(Modifier.fillMaxWidth().padding(vertical = 44.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
             }
             recommendations.isEmpty() -> item {
-                Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(feed.discoveryError ?: "No recommendations are available right now.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = discovery::refresh) { Text("Try again") }
@@ -138,63 +142,145 @@ fun HomeScreen(
                 }
             }
             else -> items(recommendations, key = { "discover-" + it.videoId }) { video ->
-                VideoRow(
-                    VideoEntity(
-                        id = video.videoId,
-                        title = video.title?.takeIf { it.isNotBlank() } ?: "Untitled video",
-                        channelId = video.channelId,
-                        thumbnailUrl = video.thumbnailUrl,
-                        durationSeconds = video.durationSeconds,
-                        source = "YOUTUBE"
-                    ),
-                    { id -> onOpenRecommendation(id, recommendations) }
+                HomeVideoItem(
+                    title = video.title?.takeIf { it.isNotBlank() } ?: "Untitled video",
+                    thumbnail = video.thumbnailUrl,
+                    channel = video.channelId?.takeIf { it.isNotBlank() } ?: "YouTube",
+                    duration = video.durationSeconds,
+                    onClick = { onOpenRecommendation(video.videoId, recommendations) }
                 )
             }
         }
 
         item {
-            Row(
-                Modifier.fillMaxWidth().padding(start = 18.dp, end = 10.dp, top = 14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text("From your subscriptions", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                    Text("Latest public uploads from followed channels", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                IconButton(onClick = discovery::refresh) { Icon(Icons.Default.Refresh, contentDescription = "Refresh subscriptions") }
-            }
+            SectionHeading("From your subscriptions", onRefresh = discovery::refresh)
         }
         when {
             feed.loading && subscriptions.isEmpty() -> item {
-                Box(Modifier.fillMaxWidth().padding(vertical = 20.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                Box(Modifier.fillMaxWidth().padding(vertical = 36.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
             }
             subscriptions.isEmpty() -> item {
-                Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Your followed channels will appear here.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     OutlinedButton(onClick = onOpenChannels) { Text("Browse subscriptions") }
                 }
             }
             else -> items(subscriptions, key = { "sub-" + it.videoId }) { video ->
-                VideoRow(
-                    VideoEntity(
-                        id = video.videoId,
-                        title = video.title?.takeIf { it.isNotBlank() } ?: "Untitled video",
-                        channelId = video.channelId,
-                        thumbnailUrl = video.thumbnailUrl,
-                        durationSeconds = video.durationSeconds,
-                        source = "YOUTUBE"
-                    ),
-                    onOpenVideo
+                HomeVideoItem(
+                    title = video.title?.takeIf { it.isNotBlank() } ?: "Untitled video",
+                    thumbnail = video.thumbnailUrl,
+                    channel = video.channelId?.takeIf { it.isNotBlank() } ?: "YouTube",
+                    duration = video.durationSeconds,
+                    onClick = { onOpenVideo(video.videoId) }
                 )
             }
         }
+
         item {
             Text(
                 "${counts.videos} saved videos · ${counts.channels} subscriptions · Stored on this device",
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 18.dp, top = 12.dp)
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp)
             )
         }
     }
 }
+
+@Composable
+private fun SectionHeading(title: String, onRefresh: (() -> Unit)?) {
+    Row(
+        Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 17.dp, bottom = 9.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (onRefresh != null) {
+            IconButton(onClick = onRefresh) {
+                Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeVideoItem(
+    title: String,
+    thumbnail: String?,
+    channel: String,
+    duration: Long?,
+    onClick: () -> Unit
+) {
+    Column(
+        Modifier.fillMaxWidth().padding(bottom = 13.dp)
+    ) {
+        Box(
+            Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(3.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            if (!thumbnail.isNullOrBlank()) {
+                AsyncImage(
+                    model = thumbnail,
+                    contentDescription = title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            duration?.takeIf { it > 0L }?.let {
+                val label = if (it >= 3600) "%d:%02d:%02d".format(it / 3600, (it % 3600) / 60, it % 60)
+                    else "%d:%02d".format(it / 60, it % 60)
+                Text(
+                    label,
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(5.dp)
+                        .background(Color.Black.copy(alpha = 0.88f), RoundedCornerShape(2.dp))
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Box(Modifier.fillMaxSize().background(Color.Transparent).then(Modifier)) {}
+            androidx.compose.foundation.layout.Box(
+                Modifier.fillMaxSize().clip(RoundedCornerShape(3.dp))
+                    .then(Modifier)
+                    .padding(0.dp)
+            ) {}
+            androidx.compose.foundation.layout.Box(
+                Modifier.fillMaxSize().clip(RoundedCornerShape(3.dp))
+                    .then(Modifier)
+                    .background(Color.Transparent)
+                    .androidClick(onClick)
+            )
+        }
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(11.dp)
+        ) {
+            Box(
+                Modifier.padding(top = 1.dp).size(36.dp).clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(channel.take(1).uppercase(), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(
+                    channel,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            IconButton(onClick = onClick, modifier = Modifier.size(36.dp)) {
+                Icon(Icons.Default.MoreVert, contentDescription = "Video options")
+            }
+        }
+    }
+}
+
+private fun Modifier.androidClick(onClick: () -> Unit): Modifier =
+    this.then(androidx.compose.foundation.clickable(onClick = onClick))
