@@ -4,6 +4,8 @@ import android.net.Uri
 
 object Routes {
     const val HOME = "home"
+    const val SHORTS = "shorts"
+    const val LIBRARY = "library"
     const val SUBSCRIPTIONS = "subscriptions"
     const val PLAYLISTS = "playlists"
     const val HISTORY = "history"

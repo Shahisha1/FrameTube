@@ -14,6 +14,8 @@ import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Subscriptions
+import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -59,6 +61,8 @@ import app.frame.video.ui.screens.PlaylistDetailScreen
 import app.frame.video.ui.screens.PlaylistsScreen
 import app.frame.video.ui.screens.SearchScreen
 import app.frame.video.ui.screens.SettingsScreen
+import app.frame.video.ui.screens.LibraryScreen
+import app.frame.video.ui.screens.ShortsScreen
 import app.frame.video.ui.viewmodel.ImportViewModel
 import app.frame.video.ui.viewmodel.ChannelDetailViewModel
 import app.frame.video.ui.viewmodel.LibraryViewModel
@@ -94,10 +98,9 @@ fun FrameApp(
 
     val items = listOf(
         NavItem(Routes.HOME, "Home", Icons.Default.Home),
+        NavItem(Routes.SHORTS, "Shorts", Icons.Default.PlayArrow),
         NavItem(Routes.SUBSCRIPTIONS, "Subscriptions", Icons.Default.Subscriptions),
-        NavItem(Routes.PLAYLISTS, "Playlists", Icons.Default.List),
-        NavItem(Routes.HISTORY, "History", Icons.Default.History),
-        NavItem(Routes.LIKED, "Liked", Icons.Default.Favorite)
+        NavItem(Routes.LIBRARY, "Library", Icons.Default.VideoLibrary)
     )
     val backStack by nav.currentBackStackEntryAsState()
     val destination = backStack?.destination
@@ -163,7 +166,19 @@ fun FrameApp(
                         maxPerChannel = maxPerChannel
                     )
                 }
+                composable(Routes.SHORTS) { ShortsScreen(discovery = discovery, onOpenVideo = openVideo) }
                 composable(Routes.SUBSCRIPTIONS) { ChannelsScreen(library, onImport = { openImport() }, onOpenChannel = { nav.navigate(Routes.channel(it)) }) }
+                composable(Routes.LIBRARY) {
+                    LibraryScreen(
+                        vm = library,
+                        downloads = container.downloads,
+                        onOpenVideo = openVideo,
+                        onOpenChannel = { nav.navigate(Routes.channel(it)) },
+                        onOpenPlaylist = { nav.navigate(Routes.playlist(it)) },
+                        onPlayDownload = { id -> nav.navigate(Routes.localPlayer(id)) },
+                        onImport = openImport
+                    )
+                }
                 composable(Routes.PLAYLISTS) { PlaylistsScreen(library, onOpenPlaylist = { nav.navigate(Routes.playlist(it)) }, onImport = { openImport() }) }
                 composable(Routes.CHANNEL) { entry ->
                     val id = entry.arguments?.getString("channelId").orEmpty()
