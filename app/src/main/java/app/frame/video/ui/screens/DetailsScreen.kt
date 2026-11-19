@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
@@ -29,7 +30,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -44,7 +44,6 @@ import app.frame.video.ui.components.openOnYouTube
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
-@Composable
 private fun compactVideoCount(value: Long): String = when {
     value >= 1_000_000_000L -> "%.1fB".format(value / 1_000_000_000.0)
     value >= 1_000_000L -> "%.1fM".format(value / 1_000_000.0)
