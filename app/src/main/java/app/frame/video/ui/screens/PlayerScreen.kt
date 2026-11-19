@@ -1,6 +1,7 @@
 package app.frame.video.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -42,6 +44,7 @@ import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -162,7 +165,7 @@ fun PlayerScreen(
                     }
                 }
             }
-            is PlayerUiState.Ready -> ExoSurface(videoId, s.source, vm, session, preferences)
+            is PlayerUiState.Ready -> ExoSurface(videoId, s.source, vm, session, preferences, onBack)
             is PlayerUiState.Failed -> Card(
                 modifier = Modifier.fillMaxWidth().padding(12.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
@@ -179,35 +182,43 @@ fun PlayerScreen(
             Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(videoTitle, style = MaterialTheme.typography.titleLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-            channel?.let { profile ->
+            if (channel != null) {
+                val profile = channel!!
                 Row(
                     Modifier.fillMaxWidth().padding(vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(11.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     if (!profile.avatarUrl.isNullOrBlank()) {
                         AsyncImage(
                             model = profile.avatarUrl,
                             contentDescription = "${profile.name} channel",
                             contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                            modifier = Modifier.size(42.dp).clip(CircleShape).clickable { onOpenChannel(profile.id) }
+                            modifier = Modifier.size(48.dp).clip(CircleShape).clickable { onOpenChannel(profile.id) }
                         )
                     } else {
                         Icon(
                             Icons.Default.AccountCircle,
                             contentDescription = null,
-                            modifier = Modifier.size(42.dp).clickable { onOpenChannel(profile.id) },
+                            modifier = Modifier.size(48.dp).clickable { onOpenChannel(profile.id) },
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     Column(
                         Modifier.weight(1f).clickable { onOpenChannel(profile.id) },
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
-                        Text(profile.name, style = MaterialTheme.typography.titleSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, maxLines = 1)
+                        Text(videoTitle, style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                        Text(profile.name, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                        metadata?.let { videoMetadata ->
+                            val details = listOfNotNull(
+                                videoMetadata.viewCount?.takeIf { it >= 0L }?.let { "${compactVideoCount(it)} views" },
+                                videoMetadata.textualUploadDate?.takeIf { it.isNotBlank() }
+                            ).joinToString(" · ")
+                            if (details.isNotBlank()) Text(details, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                        }
                         profile.subscriberCount?.let {
-                            Text("${formatChannelCount(it)} subscribers", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("${formatChannelCount(it)} subscribers", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     Button(
@@ -224,50 +235,93 @@ fun PlayerScreen(
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (subscribed) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.onSurface,
                             contentColor = if (subscribed) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.background
-                        )
+                        ),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                     ) {
                         Text(if (subscribed) "Subscribed" else "Subscribe")
                     }
                 }
+            } else if (!metadata?.channelName.isNullOrBlank()) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    if (!metadata?.channelAvatarUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = metadata?.channelAvatarUrl,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp).clip(CircleShape)
+                        )
+                    } else {
+                        Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(48.dp))
+                    }
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(videoTitle, style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                        Text(metadata?.channelName.orEmpty(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        val details = listOfNotNull(
+                            metadata?.viewCount?.takeIf { it >= 0L }?.let { "${compactVideoCount(it)} views" },
+                            metadata?.textualUploadDate?.takeIf { it.isNotBlank() }
+                        ).joinToString(" · ")
+                        if (details.isNotBlank()) Text(details, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            } else {
+                Text(videoTitle, style = MaterialTheme.typography.titleLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
             }
 
             Row(
                 Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconToggleButton(
-                    checked = liked,
-                    onCheckedChange = { requested ->
-                        scope.launch {
-                            try {
-                                library.ensureVideo(videoId, videoTitle, metadata?.thumbnailUrl)
-                                library.setLiked(videoId, requested)
-                            } catch (cancelled: CancellationException) {
-                                throw cancelled
-                            } catch (_: Exception) { }
-                        }
-                    }
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
-                    Icon(
-                        if (liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = if (liked) "Unlike video" else "Like video",
-                        tint = if (liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                Text(if (liked) "Liked" else "Like", style = MaterialTheme.typography.labelMedium)
-                IconButton(onClick = {
-                    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(android.content.Intent.EXTRA_TEXT, "https://www.youtube.com/watch?v=$videoId")
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconToggleButton(
+                            checked = liked,
+                            onCheckedChange = { requested ->
+                                scope.launch {
+                                    try {
+                                        library.ensureVideo(videoId, videoTitle, metadata?.thumbnailUrl)
+                                        library.setLiked(videoId, requested)
+                                    } catch (cancelled: CancellationException) {
+                                        throw cancelled
+                                    } catch (_: Exception) { }
+                                }
+                            }
+                        ) {
+                            Icon(
+                                if (liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = if (liked) "Unlike video" else "Like video",
+                                tint = if (liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        androidx.compose.material3.HorizontalDivider(
+                            Modifier.size(width = 1.dp, height = 22.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+                        IconButton(onClick = {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(android.content.Intent.EXTRA_TEXT, "https://www.youtube.com/watch?v=$videoId")
+                            }
+                            context.startActivity(android.content.Intent.createChooser(intent, "Share video"))
+                        }) { Icon(Icons.Default.Share, contentDescription = "Share video") }
                     }
-                    context.startActivity(android.content.Intent.createChooser(intent, "Share video"))
-                }) { Icon(Icons.Default.Share, contentDescription = "Share video") }
-                Text("Share", style = MaterialTheme.typography.labelMedium)
-                androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
-                TextButton(onClick = onOpenSettings) {
-                    Icon(Icons.Default.Settings, contentDescription = null)
-                    Text("Settings", modifier = Modifier.padding(start = 4.dp))
+                }
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    TextButton(onClick = onOpenSettings) {
+                        Icon(Icons.Default.Settings, contentDescription = null)
+                        Text("More", modifier = Modifier.padding(start = 4.dp))
+                    }
                 }
             }
 
@@ -300,7 +354,7 @@ fun PlayerScreen(
 }
 
 @Composable
-private fun ExoSurface(videoId: String, source: PlaybackResolution.Ready, vm: PlayerViewModel, session: PlaybackSession, preferences: FramePreferences) {
+private fun ExoSurface(videoId: String, source: PlaybackResolution.Ready, vm: PlayerViewModel, session: PlaybackSession, preferences: FramePreferences, onBack: () -> Unit) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val player = session.player
     LaunchedEffect(videoId, source.uri) {
@@ -431,6 +485,13 @@ private fun ExoSurface(videoId: String, source: PlaybackResolution.Ready, vm: Pl
                     )
                 )
             )
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier.align(Alignment.TopStart).padding(8.dp)
+                    .background(Color.Black.copy(alpha = 0.42f), CircleShape)
+            ) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Back to videos", tint = Color.White)
+            }
             Row(
                 Modifier.align(Alignment.Center),
                 verticalAlignment = Alignment.CenterVertically,
@@ -517,6 +578,13 @@ private fun formatPlayerTime(milliseconds: Long): String {
     val minutes = (seconds % 3_600) / 60
     val remainder = seconds % 60
     return if (hours > 0) "%d:%02d:%02d".format(hours, minutes, remainder) else "%d:%02d".format(minutes, remainder)
+}
+
+private fun compactVideoCount(count: Long): String = when {
+    count >= 1_000_000_000L -> "%.1fB".format(count / 1_000_000_000.0)
+    count >= 1_000_000L -> "%.1fM".format(count / 1_000_000.0)
+    count >= 1_000L -> "%.1fK".format(count / 1_000.0)
+    else -> count.toString()
 }
 
 private fun formatChannelCount(count: Long): String = when {

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -27,8 +28,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.frame.video.data.local.VideoEntity
-import app.frame.video.ui.components.VideoRow
 import app.frame.video.ui.viewmodel.ChannelDetailViewModel
 import coil.compose.AsyncImage
 import java.util.Locale
@@ -66,7 +65,7 @@ fun ChannelDetailScreen(
                             model = profile.bannerUrl,
                             contentDescription = "Channel banner",
                             contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxWidth().height(132.dp).clip(MaterialTheme.shapes.large)
+                            modifier = Modifier.fillMaxWidth().height(116.dp).clip(RoundedCornerShape(12.dp))
                         )
                     }
                     Row(
@@ -96,7 +95,7 @@ fun ChannelDetailScreen(
                     if (!profile.description.isNullOrBlank()) {
                         Text(profile.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Text("VIDEOS", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    Text("Videos", style = MaterialTheme.typography.titleLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
                 if (state.videos.isEmpty()) {
@@ -107,15 +106,15 @@ fun ChannelDetailScreen(
                     androidx.compose.foundation.lazy.LazyColumn(Modifier.weight(1f)) {
                         items(state.videos.size, key = { state.videos[it].videoId }) { index ->
                             val video = state.videos[index]
-                            VideoRow(
-                                VideoEntity(
-                                    id = video.videoId,
-                                    title = video.title ?: "Video ${video.videoId}",
-                                    channelId = video.channelId,
-                                    thumbnailUrl = video.thumbnailUrl,
-                                    source = "YOUTUBE"
-                                ),
-                                onOpenVideo
+                            HomeVideoItem(
+                                videoId = video.videoId,
+                                title = video.title?.takeIf { it.isNotBlank() } ?: "Video ${video.videoId}",
+                                thumbnail = video.thumbnailUrl,
+                                channel = profile.name,
+                                duration = video.durationSeconds,
+                                channelAvatar = profile.avatarUrl,
+                                metadataLine = videoMetadataLine(video),
+                                onClick = { onOpenVideo(video.videoId) }
                             )
                         }
                     }

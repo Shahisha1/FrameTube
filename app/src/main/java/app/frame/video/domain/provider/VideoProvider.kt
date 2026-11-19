@@ -15,7 +15,12 @@ data class VideoMetadataResult(
     val thumbnailUrl: String?,
     val availability: MetadataAvailability,
     val durationSeconds: Long? = null,
-    val isShortFormContent: Boolean = false
+    val isShortFormContent: Boolean = false,
+    val channelName: String? = null,
+    val channelAvatarUrl: String? = null,
+    val viewCount: Long? = null,
+    val textualUploadDate: String? = null,
+    val isUploaderVerified: Boolean = false
 )
 
 data class ChannelSearchResult(val url: String, val title: String, val thumbnailUrl: String?)

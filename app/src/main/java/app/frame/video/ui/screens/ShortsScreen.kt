@@ -263,7 +263,7 @@ private fun ShortsActivePage(
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text(video.title.orEmpty(), color = Color.White, style = MaterialTheme.typography.titleMedium, maxLines = 3)
-            Text("YouTube · Short ${index + 1} of ${total}", color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.labelSmall)
+            Text(video.channelName ?: "Shorts", color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.labelSmall)
         }
 
         Column(

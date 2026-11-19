@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -57,6 +58,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -76,7 +81,23 @@ fun ChannelsScreen(vm: LibraryViewModel, onImport: () -> Unit, onOpenChannel: (S
         LibraryHeading("YOUR NETWORK", "Channels", "Channels from your saved archive.")
         Box(Modifier.weight(1f)) {
             PagedList(items, key = { it.id }, emptyTitle = "No channels yet", emptyHint = "Subscriptions from your Takeout appear here.", actionLabel = "Import Takeout", onAction = onImport) {
-                ListItem(headlineContent = { Text(it.title) }, supportingContent = { Text("Channel ID ${it.id}") }, leadingContent = { Icon(Icons.Default.AccountCircle, null) }, modifier = Modifier.clickable(onClickLabel = "Open channel") { onOpenChannel(it.id) })
+                ListItem(
+                    headlineContent = { Text(it.title, maxLines = 1) },
+                    supportingContent = { Text("Subscribed channel") },
+                    leadingContent = {
+                        if (!it.thumbnailUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = it.thumbnailUrl,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.size(48.dp).clip(CircleShape)
+                            )
+                        } else {
+                            Icon(Icons.Default.AccountCircle, null)
+                        }
+                    },
+                    modifier = Modifier.clickable(onClickLabel = "Open channel") { onOpenChannel(it.id) }
+                )
             }
         }
     }
@@ -100,7 +121,7 @@ fun PlaylistsScreen(vm: LibraryViewModel, onOpenPlaylist: (String) -> Unit, onIm
             PagedList(items, key = { it.id }, emptyTitle = "No playlists yet", emptyHint = "Create a playlist or import one from Takeout.", actionLabel = "Import Takeout", onAction = onImport) {
                 ListItem(
                     headlineContent = { Text(it.title) },
-                    supportingContent = { Text(it.source.lowercase().replaceFirstChar { c -> c.uppercase() }) },
+                    supportingContent = { Text("Playlist") },
                     leadingContent = { Icon(Icons.Default.List, null) },
                     modifier = Modifier.clickable(onClickLabel = "Open playlist") { onOpenPlaylist(it.id) }
                 )
@@ -148,10 +169,53 @@ fun PlaylistDetailScreen(
     var description by remember(playlist?.description) { mutableStateOf(playlist?.description.orEmpty()) }
     var error by remember { mutableStateOf<String?>(null) }
 
+    val cover = if (items.itemCount > 0) items[0]?.thumbnailUrl else null
     Column(Modifier.fillMaxSize()) {
-        LibraryHeading("PLAYLIST", playlist?.title ?: "Playlist", playlist?.description ?: "Manage videos in this collection.")
+        Box(
+            Modifier.fillMaxWidth().height(176.dp).background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            if (!cover.isNullOrBlank()) {
+                AsyncImage(
+                    model = cover,
+                    contentDescription = "Playlist cover",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            Box(
+                Modifier.fillMaxSize().background(
+                    Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.82f)))
+                )
+            )
+            Column(
+                Modifier.align(Alignment.BottomStart).padding(horizontal = 18.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Text("PLAYLIST", style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.82f))
+                Text(
+                    playlist?.title ?: "Playlist",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Color.White,
+                    maxLines = 2
+                )
+                Text(
+                    "${items.itemCount} videos",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.82f)
+                )
+            }
+        }
+        if (!playlist?.description.isNullOrBlank()) {
+            Text(
+                playlist?.description.orEmpty(),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 3
+            )
+        }
         androidx.compose.foundation.layout.Row(
-            Modifier.fillMaxWidth().padding(horizontal = 18.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
             horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
         ) {
             OutlinedButton(onClick = { error = null; showAdd = true }, modifier = Modifier.weight(1f)) {
@@ -239,7 +303,7 @@ fun PlaylistDetailScreen(
 fun HistoryScreen(vm: LibraryViewModel, onOpenVideo: (String) -> Unit, onImport: () -> Unit) {
     val items = vm.history.collectAsLazyPagingItems()
     Column(Modifier.fillMaxSize()) {
-        LibraryHeading("YOUR ACTIVITY", "Watch history", "Videos from your imported watch history.")
+        LibraryHeading("History", "Watch history", "Videos you have watched on this device or imported.")
         Box(Modifier.weight(1f)) {
             PagedList(items, key = { it.id }, emptyTitle = "No watch history", emptyHint = "Imported watch history appears here, newest first.", actionLabel = "Import Takeout", onAction = onImport) { VideoRow(it, onOpenVideo) }
         }
@@ -250,7 +314,7 @@ fun HistoryScreen(vm: LibraryViewModel, onOpenVideo: (String) -> Unit, onImport:
 fun LikedScreen(vm: LibraryViewModel, onOpenVideo: (String) -> Unit, onImport: () -> Unit) {
     val items = vm.liked.collectAsLazyPagingItems()
     Column(Modifier.fillMaxSize()) {
-        LibraryHeading("YOUR COLLECTION", "Liked videos", "Videos marked as liked in your archive.")
+        LibraryHeading("Liked videos", "Liked videos", "Videos you have marked as liked.")
         Box(Modifier.weight(1f)) {
             PagedList(items, key = { it.id }, emptyTitle = "No liked videos", emptyHint = "Frame has not found a verified liked-videos file in the Takeout formats it understands yet.", actionLabel = "Import Takeout", onAction = onImport) { VideoRow(it, onOpenVideo) }
         }
@@ -434,7 +498,10 @@ fun SearchScreen(
                                     durationSeconds = result.durationSeconds,
                                     source = "YOUTUBE"
                                 ),
-                                onOpenVideo
+                                onOpenVideo,
+                                channelName = result.channelName,
+                                channelAvatarUrl = result.channelAvatarUrl,
+                                metadataLine = videoMetadataLine(result)
                             )
                         }
                     }
@@ -515,16 +582,15 @@ fun SubscriptionsScreen(
             )
             else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 16.dp)) {
                 items(feed.videos, key = { it.videoId }) { video ->
-                    VideoRow(
-                        app.frame.video.data.local.VideoEntity(
-                            id = video.videoId,
-                            title = video.title?.takeIf { it.isNotBlank() } ?: "YouTube video",
-                            channelId = video.channelId,
-                            thumbnailUrl = video.thumbnailUrl,
-                            durationSeconds = video.durationSeconds,
-                            source = "YOUTUBE"
-                        ),
-                        onOpenVideo
+                    HomeVideoItem(
+                        videoId = video.videoId,
+                        title = video.title?.takeIf { it.isNotBlank() } ?: "YouTube video",
+                        thumbnail = video.thumbnailUrl,
+                        channel = video.channelName ?: "Latest upload",
+                        duration = video.durationSeconds,
+                        channelAvatar = video.channelAvatarUrl,
+                        metadataLine = videoMetadataLine(video),
+                        onClick = { onOpenVideo(video.videoId) }
                     )
                 }
             }

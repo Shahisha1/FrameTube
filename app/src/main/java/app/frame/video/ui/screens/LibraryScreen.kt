@@ -76,7 +76,7 @@ fun LibraryScreen(
             )
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text("You", style = MaterialTheme.typography.headlineMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-                Text("Your videos and activity · Stored on this device", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("History, playlists and saved videos", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         Row(

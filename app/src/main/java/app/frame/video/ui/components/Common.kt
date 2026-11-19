@@ -91,7 +91,14 @@ fun VideoThumbnail(url: String?, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun VideoRow(video: VideoEntity, onOpen: (String) -> Unit, trailingContent: (@Composable () -> Unit)? = null) {
+fun VideoRow(
+    video: VideoEntity,
+    onOpen: (String) -> Unit,
+    channelName: String? = null,
+    channelAvatarUrl: String? = null,
+    metadataLine: String? = null,
+    trailingContent: (@Composable () -> Unit)? = null
+) {
     val title = video.title.takeIf { it != video.id } ?: "Video ${video.id}"
     Row(
         Modifier.fillMaxWidth().clickable(onClickLabel = "Open video") { onOpen(video.id) }
@@ -109,7 +116,7 @@ fun VideoRow(video: VideoEntity, onOpen: (String) -> Unit, trailingContent: (@Co
             }
             video.durationSeconds?.takeIf { it > 0L }?.let {
                 val total = it
-                val label = "%d:%02d".format(total / 60, total % 60)
+                val label = if (total >= 3_600L) "%d:%02d:%02d".format(total / 3_600, (total % 3_600) / 60, total % 60) else "%d:%02d".format(total / 60, total % 60)
                 Text(
                     label,
                     modifier = Modifier.align(Alignment.BottomEnd).padding(3.dp)
@@ -123,13 +130,33 @@ fun VideoRow(video: VideoEntity, onOpen: (String) -> Unit, trailingContent: (@Co
         }
         Column(Modifier.weight(1f).padding(top = 1.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Text(
-                if (video.channelId.isNullOrBlank()) "YouTube" else video.source.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                if (!channelAvatarUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = channelAvatarUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.size(18.dp).clip(CircleShape)
+                    )
+                }
+                Text(
+                    channelName?.takeIf { it.isNotBlank() }
+                        ?: if (video.channelId.isNullOrBlank()) "YouTube" else video.source.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            if (!metadataLine.isNullOrBlank()) {
+                Text(
+                    metadataLine,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
         trailingContent?.invoke()
     }

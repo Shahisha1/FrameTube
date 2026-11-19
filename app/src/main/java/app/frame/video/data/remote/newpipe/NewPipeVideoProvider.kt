@@ -26,7 +26,18 @@ class NewPipeVideoProvider : VideoProvider {
         if (!VIDEO_ID.matches(videoId)) return VideoMetadataResult(videoId, null, null, null, MetadataAvailability.NOT_FOUND)
         return try {
             val info = NewPipeClient.stream(videoId)
-            VideoMetadataResult(info.id, info.name, null, info.thumbnails.firstOrNull()?.url, MetadataAvailability.AVAILABLE)
+            VideoMetadataResult(
+                videoId = info.id,
+                title = info.name,
+                channelId = info.uploaderUrl.takeIf { it.isNotBlank() },
+                thumbnailUrl = info.thumbnails.firstOrNull()?.url,
+                availability = MetadataAvailability.AVAILABLE,
+                channelName = info.uploaderName.takeIf { it.isNotBlank() },
+                channelAvatarUrl = info.uploaderAvatars.firstOrNull()?.url,
+                viewCount = info.viewCount.takeIf { it >= 0L },
+                textualUploadDate = info.textualUploadDate?.takeIf { it.isNotBlank() },
+                isUploaderVerified = info.isUploaderVerified
+            )
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
@@ -94,11 +105,16 @@ class NewPipeVideoProvider : VideoProvider {
                     videos += VideoMetadataResult(
                         videoId = id,
                         title = item.name,
-                        channelId = null,
+                        channelId = stream?.uploaderUrl?.takeIf { it.isNotBlank() },
                         thumbnailUrl = thumbnail,
                         availability = MetadataAvailability.AVAILABLE,
                         durationSeconds = stream?.duration?.takeIf { it > 0L },
-                        isShortFormContent = stream?.isShortFormContent == true
+                        isShortFormContent = stream?.isShortFormContent == true,
+                        channelName = stream?.uploaderName?.takeIf { it.isNotBlank() },
+                        channelAvatarUrl = stream?.uploaderAvatars?.firstOrNull()?.url,
+                        viewCount = stream?.viewCount?.takeIf { it >= 0L },
+                        textualUploadDate = stream?.textualUploadDate?.takeIf { it.isNotBlank() },
+                        isUploaderVerified = stream?.isUploaderVerified == true
                     )
                 }
             }

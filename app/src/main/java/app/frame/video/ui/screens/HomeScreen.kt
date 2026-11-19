@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -34,6 +36,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -58,7 +61,22 @@ import android.content.Intent
 
 private data class HomeFeedVideo(val video: VideoMetadataResult, val fromSubscriptions: Boolean)
 
-private val discoveryTopics = listOf("All", "Music", "Gaming", "Mixes", "Live", "Technology", "Learning", "Recently uploaded")
+private val discoveryTopics = listOf("Home", "Subs", "All", "Music", "Gaming", "Mixes", "Live", "Technology", "Learning", "Recently uploaded")
+
+fun videoMetadataLine(video: VideoMetadataResult): String? {
+    val parts = buildList {
+        video.viewCount?.takeIf { it >= 0L }?.let { add("${compactVideoCount(it)} views") }
+        video.textualUploadDate?.takeIf { it.isNotBlank() }?.let(::add)
+    }
+    return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
+}
+
+private fun compactVideoCount(value: Long): String = when {
+    value >= 1_000_000_000L -> "%.1fB".format(value / 1_000_000_000.0)
+    value >= 1_000_000L -> "%.1fM".format(value / 1_000_000.0)
+    value >= 1_000L -> "%.1fK".format(value / 1_000.0)
+    else -> value.toString()
+}
 
 @Composable
 fun HomeScreen(
@@ -70,6 +88,7 @@ fun HomeScreen(
     onExploreTopic: (String) -> Unit,
     onOpenVideo: (String) -> Unit,
     onOpenRecommendation: (String, List<VideoMetadataResult>) -> Unit = { id, _ -> onOpenVideo(id) },
+    onOpenShorts: (String?) -> Unit = {},
     hideShorts: Boolean = false,
     mutedKeywords: String = "",
     maxPerChannel: Int = 3
@@ -77,7 +96,7 @@ fun HomeScreen(
     val counts by vm.counts.collectAsStateWithLifecycle()
     val recent by vm.recent.collectAsStateWithLifecycle()
     val feed by discovery.state.collectAsStateWithLifecycle()
-    var selectedTopic by remember { mutableStateOf("All") }
+    var selectedTopic by remember { mutableStateOf("Home") }
     val subscriptions = remember(feed.videos, hideShorts, mutedKeywords, maxPerChannel) {
         app.frame.video.domain.filterRecommendations(feed.videos, hideShorts, mutedKeywords, maxPerChannel)
     }
@@ -113,8 +132,11 @@ fun HomeScreen(
                         selected = selectedTopic == topic,
                         onClick = {
                             selectedTopic = topic
-                            if (topic != "All") onExploreTopic(topic.lowercase())
-                            else discovery.refresh()
+                            when (topic) {
+                                "Subs" -> onOpenChannels()
+                                "Home", "All" -> discovery.refresh()
+                                else -> onExploreTopic(topic.lowercase())
+                            }
                         },
                         label = { Text(topic, maxLines = 1) },
                         shape = RoundedCornerShape(8.dp),
@@ -125,6 +147,54 @@ fun HomeScreen(
                             selectedLabelColor = MaterialTheme.colorScheme.background
                         )
                     )
+                }
+            }
+        }
+
+        if (!hideShorts && feed.shortsVideos.isNotEmpty()) {
+            item {
+                Column(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 8.dp)) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, bottom = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Shorts", modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        TextButton(onClick = { onOpenShorts(null) }) { Text("See all") }
+                    }
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(feed.shortsVideos.take(10), key = { "short-" + it.videoId }) { short ->
+                            Column(
+                                Modifier.width(148.dp).clickable { onOpenShorts(short.videoId) },
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Box(
+                                    Modifier.fillMaxWidth().aspectRatio(0.58f)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                ) {
+                                    if (!short.thumbnailUrl.isNullOrBlank()) {
+                                        AsyncImage(
+                                            model = short.thumbnailUrl,
+                                            contentDescription = short.title,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
+                                }
+                                Text(
+                                    short.title?.takeIf { it.isNotBlank() } ?: "Short video",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.padding(horizontal = 2.dp)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -175,8 +245,10 @@ fun HomeScreen(
                     videoId = video.videoId,
                     title = video.title?.takeIf { it.isNotBlank() } ?: "Untitled video",
                     thumbnail = video.thumbnailUrl,
-                    channel = "YouTube",
+                    channel = video.channelName ?: if (item.fromSubscriptions) "Latest upload" else "YouTube",
                     duration = video.durationSeconds,
+                    channelAvatar = video.channelAvatarUrl,
+                    metadataLine = videoMetadataLine(video),
                     onClick = {
                         if (item.fromSubscriptions) onOpenVideo(video.videoId)
                         else onOpenRecommendation(video.videoId, recommendations)
@@ -212,12 +284,14 @@ private fun SectionHeading(title: String, onRefresh: (() -> Unit)?) {
 }
 
 @Composable
-private fun HomeVideoItem(
+fun HomeVideoItem(
     videoId: String,
     title: String,
     thumbnail: String?,
     channel: String,
     duration: Long?,
+    channelAvatar: String? = null,
+    metadataLine: String? = null,
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
@@ -256,12 +330,21 @@ private fun HomeVideoItem(
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(11.dp)
         ) {
-            Icon(
-                Icons.Default.AccountCircle,
-                contentDescription = null,
-                modifier = Modifier.padding(top = 1.dp).size(38.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            if (!channelAvatar.isNullOrBlank()) {
+                AsyncImage(
+                    model = channelAvatar,
+                    contentDescription = "$channel channel",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.padding(top = 1.dp).size(38.dp).clip(CircleShape)
+                )
+            } else {
+                Icon(
+                    Icons.Default.AccountCircle,
+                    contentDescription = null,
+                    modifier = Modifier.padding(top = 1.dp).size(38.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(
@@ -271,6 +354,15 @@ private fun HomeVideoItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                if (!metadataLine.isNullOrBlank()) {
+                    Text(
+                        metadataLine,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
             Box {
                 IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(36.dp)) {
