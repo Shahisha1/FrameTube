@@ -239,7 +239,7 @@ fun PlaylistDetailScreen(
 fun HistoryScreen(vm: LibraryViewModel, onOpenVideo: (String) -> Unit, onImport: () -> Unit) {
     val items = vm.history.collectAsLazyPagingItems()
     Column(Modifier.fillMaxSize()) {
-        LibraryHeading("YOUR ACTIVITY", "Watch history", "Videos from your imported watch history.")
+        LibraryHeading("History", "Watch history", "Videos you have watched on this device or imported.")
         Box(Modifier.weight(1f)) {
             PagedList(items, key = { it.id }, emptyTitle = "No watch history", emptyHint = "Imported watch history appears here, newest first.", actionLabel = "Import Takeout", onAction = onImport) { VideoRow(it, onOpenVideo) }
         }
@@ -250,7 +250,7 @@ fun HistoryScreen(vm: LibraryViewModel, onOpenVideo: (String) -> Unit, onImport:
 fun LikedScreen(vm: LibraryViewModel, onOpenVideo: (String) -> Unit, onImport: () -> Unit) {
     val items = vm.liked.collectAsLazyPagingItems()
     Column(Modifier.fillMaxSize()) {
-        LibraryHeading("YOUR COLLECTION", "Liked videos", "Videos marked as liked in your archive.")
+        LibraryHeading("Liked videos", "Liked videos", "Videos you have marked as liked.")
         Box(Modifier.weight(1f)) {
             PagedList(items, key = { it.id }, emptyTitle = "No liked videos", emptyHint = "Frame has not found a verified liked-videos file in the Takeout formats it understands yet.", actionLabel = "Import Takeout", onAction = onImport) { VideoRow(it, onOpenVideo) }
         }

@@ -28,8 +28,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.frame.video.data.local.VideoEntity
-import app.frame.video.ui.components.VideoRow
 import app.frame.video.ui.viewmodel.ChannelDetailViewModel
 import coil.compose.AsyncImage
 import java.util.Locale
