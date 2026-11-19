@@ -5,7 +5,6 @@ import android.content.Context
 import android.database.Cursor
 import android.net.Uri
 import android.os.Environment
-import java.util.Locale
 
 data class DownloadItem(
     val id: Long,
@@ -28,38 +27,20 @@ class DownloadStore(context: Context) {
 
     @Synchronized
     fun enqueue(rawUrl: String, title: String): Long {
-        val uri = Uri.parse(rawUrl.trim())
-        require(uri.scheme == "https") { "Use a secure https:// video link." }
-        val host = uri.host?.lowercase(Locale.ROOT).orEmpty()
-        require(host.isNotBlank()) { "That link has no valid host." }
-        require(listOf("youtube.com", "youtu.be", "youtube-nocookie.com", "googlevideo.com").none { host == it || host.endsWith(".$it") }) {
-            "Frame does not download YouTube streams. Use a direct file link you have permission to save."
-        }
-        val path = uri.lastPathSegment.orEmpty()
-        val extension = path.substringAfterLast('.', "").lowercase(Locale.ROOT)
-        val mime = when (extension) {
-            "mp4", "m4v" -> "video/mp4"
-            "webm" -> "video/webm"
-            "mkv" -> "video/x-matroska"
-            "mov" -> "video/quicktime"
-            "avi" -> "video/x-msvideo"
-            else -> null
-        }
-        require(mime != null) { "Use a direct MP4, WebM, MKV, MOV or AVI file link." }
+        val file = DirectDownloadPolicy.validate(rawUrl)
+        val uri = Uri.parse(file.url)
 
-        val safeName = path.take(80).ifBlank { "frame-video.$extension" }
-            .replace(Regex("[^A-Za-z0-9._-]"), "_")
         val request = DownloadManager.Request(uri)
-            .setTitle(title.trim().ifBlank { safeName })
+            .setTitle(title.trim().ifBlank { file.fileName })
             .setDescription("Saved for offline playback in Frame")
-            .setMimeType(mime)
+            .setMimeType(file.mimeType)
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
             .setAllowedOverMetered(true)
             .setAllowedOverRoaming(false)
             .setDestinationInExternalFilesDir(
                 app,
                 Environment.DIRECTORY_MOVIES,
-                "${System.currentTimeMillis()}_$safeName"
+                "${System.currentTimeMillis()}_${file.fileName}"
             )
         val id = manager.enqueue(request)
         val ids = prefs.getStringSet(KEY_IDS, emptySet()).orEmpty().toMutableSet()
