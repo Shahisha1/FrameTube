@@ -267,42 +267,49 @@ private fun ShortsActivePage(
         }
 
         Column(
-            Modifier.align(Alignment.CenterEnd).padding(end = 10.dp, bottom = 36.dp),
+            Modifier.align(Alignment.CenterEnd).padding(end = 8.dp, bottom = 30.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            IconToggleButton(
-                checked = liked,
-                onCheckedChange = { requested ->
-                    scope.launch {
-                        try {
-                            library.ensureVideo(video.videoId, video.title, video.thumbnailUrl)
-                            library.setLiked(video.videoId, requested)
-                        } catch (cancelled: CancellationException) {
-                            throw cancelled
-                        } catch (_: Exception) {
-                            // The Shorts player stays usable if a local write fails.
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                IconToggleButton(
+                    checked = liked,
+                    onCheckedChange = { requested ->
+                        scope.launch {
+                            try {
+                                library.ensureVideo(video.videoId, video.title, video.thumbnailUrl)
+                                library.setLiked(video.videoId, requested)
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (_: Exception) { }
                         }
                     }
+                ) {
+                    Icon(
+                        if (liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = if (liked) "Unlike Short" else "Like Short",
+                        tint = if (liked) Color(0xFFFF5A70) else Color.White
+                    )
                 }
-            ) {
-                Icon(
-                    if (liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = if (liked) "Unlike Short" else "Like Short",
-                    tint = if (liked) Color(0xFFFF5A70) else Color.White
-                )
+                Text("Like", color = Color.White, style = MaterialTheme.typography.labelSmall)
             }
-            IconButton(onClick = {
-                val intent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_TEXT, "https://www.youtube.com/watch?v=${video.videoId}")
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                IconButton(onClick = {
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, "https://www.youtube.com/watch?v=${video.videoId}")
+                    }
+                    context.startActivity(Intent.createChooser(intent, "Share Short"))
+                }) {
+                    Icon(Icons.Default.Share, contentDescription = "Share Short", tint = Color.White)
                 }
-                context.startActivity(Intent.createChooser(intent, "Share Short"))
-            }) {
-                Icon(Icons.Default.Share, contentDescription = "Share Short", tint = Color.White)
+                Text("Share", color = Color.White, style = MaterialTheme.typography.labelSmall)
             }
-            IconButton(onClick = { onOpenVideo(video.videoId) }) {
-                Icon(Icons.Default.Info, contentDescription = "Video details", tint = Color.White)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                IconButton(onClick = { onOpenVideo(video.videoId) }) {
+                    Icon(Icons.Default.Info, contentDescription = "Video details", tint = Color.White)
+                }
+                Text("Details", color = Color.White, style = MaterialTheme.typography.labelSmall)
             }
         }
     }
