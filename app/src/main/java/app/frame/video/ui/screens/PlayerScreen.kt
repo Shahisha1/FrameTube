@@ -408,7 +408,7 @@ private fun ExoSurface(videoId: String, source: PlaybackResolution.Ready, vm: Pl
                 }
             },
             update = { it.player = player },
-            modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(18.dp)).background(Color.Black)
+            modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(0.dp)).background(Color.Black)
         )
         if (skipNotice != null) Text(skipNotice.orEmpty(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
         Slider(

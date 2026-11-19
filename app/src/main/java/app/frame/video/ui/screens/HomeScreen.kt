@@ -228,7 +228,7 @@ private fun HomeVideoItem(
     Column(Modifier.fillMaxWidth().padding(bottom = 13.dp)) {
         Box(
             Modifier.fillMaxWidth().aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(3.dp))
+                .clip(RoundedCornerShape(12.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 .clickable(onClickLabel = "Play video", onClick = onClick)
         ) {

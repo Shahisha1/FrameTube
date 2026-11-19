@@ -86,7 +86,7 @@ fun VideoThumbnail(url: String?, modifier: Modifier = Modifier) {
         model = url,
         contentDescription = null,
         contentScale = ContentScale.Crop,
-        modifier = modifier.clip(RoundedCornerShape(3.dp))
+        modifier = modifier.clip(RoundedCornerShape(10.dp))
     )
 }
 
