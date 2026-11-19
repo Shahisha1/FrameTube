@@ -81,7 +81,23 @@ fun ChannelsScreen(vm: LibraryViewModel, onImport: () -> Unit, onOpenChannel: (S
         LibraryHeading("YOUR NETWORK", "Channels", "Channels from your saved archive.")
         Box(Modifier.weight(1f)) {
             PagedList(items, key = { it.id }, emptyTitle = "No channels yet", emptyHint = "Subscriptions from your Takeout appear here.", actionLabel = "Import Takeout", onAction = onImport) {
-                ListItem(headlineContent = { Text(it.title) }, supportingContent = { Text("Channel ID ${it.id}") }, leadingContent = { Icon(Icons.Default.AccountCircle, null) }, modifier = Modifier.clickable(onClickLabel = "Open channel") { onOpenChannel(it.id) })
+                ListItem(
+                    headlineContent = { Text(it.title, maxLines = 1) },
+                    supportingContent = { Text("Subscribed channel") },
+                    leadingContent = {
+                        if (!it.thumbnailUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = it.thumbnailUrl,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.size(48.dp).clip(CircleShape)
+                            )
+                        } else {
+                            Icon(Icons.Default.AccountCircle, null)
+                        }
+                    },
+                    modifier = Modifier.clickable(onClickLabel = "Open channel") { onOpenChannel(it.id) }
+                )
             }
         }
     }
@@ -105,7 +121,7 @@ fun PlaylistsScreen(vm: LibraryViewModel, onOpenPlaylist: (String) -> Unit, onIm
             PagedList(items, key = { it.id }, emptyTitle = "No playlists yet", emptyHint = "Create a playlist or import one from Takeout.", actionLabel = "Import Takeout", onAction = onImport) {
                 ListItem(
                     headlineContent = { Text(it.title) },
-                    supportingContent = { Text(it.source.lowercase().replaceFirstChar { c -> c.uppercase() }) },
+                    supportingContent = { Text("Playlist") },
                     leadingContent = { Icon(Icons.Default.List, null) },
                     modifier = Modifier.clickable(onClickLabel = "Open playlist") { onOpenPlaylist(it.id) }
                 )

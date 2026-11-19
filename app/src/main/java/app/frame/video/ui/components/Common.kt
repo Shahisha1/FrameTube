@@ -116,7 +116,7 @@ fun VideoRow(
             }
             video.durationSeconds?.takeIf { it > 0L }?.let {
                 val total = it
-                val label = "%d:%02d".format(total / 60, total % 60)
+                val label = if (total >= 3_600L) "%d:%02d:%02d".format(total / 3_600, (total % 3_600) / 60, total % 60) else "%d:%02d".format(total / 60, total % 60)
                 Text(
                     label,
                     modifier = Modifier.align(Alignment.BottomEnd).padding(3.dp)
