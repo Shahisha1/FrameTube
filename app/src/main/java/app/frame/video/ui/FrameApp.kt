@@ -50,6 +50,7 @@ import app.frame.video.domain.playback.PlaybackQueueEntry
 import app.frame.video.domain.playback.PlaybackQueueMode
 import app.frame.video.ui.navigation.Routes
 import app.frame.video.ui.screens.ChannelsScreen
+import app.frame.video.ui.screens.SubscriptionsScreen
 import app.frame.video.ui.screens.ChannelDetailScreen
 import app.frame.video.ui.screens.DetailsScreen
 import app.frame.video.ui.screens.DownloadsScreen
@@ -108,6 +109,7 @@ fun FrameApp(
     val destination = backStack?.destination
     val showNavigation = items.any { destination?.hierarchy?.any { d -> d.route == it.route } == true }
     val isShortsDestination = destination?.hierarchy?.any { it.route == Routes.SHORTS } == true
+    val isSearchDestination = destination?.hierarchy?.any { it.route == Routes.SEARCH } == true
     val openVideo = { id: String -> nav.navigate(Routes.details(id)) }
     val openImport = { nav.navigate(Routes.IMPORT) }
     val openSearch = { nav.navigate(Routes.SEARCH) }
@@ -115,7 +117,7 @@ fun FrameApp(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            if (!isShortsDestination) TopAppBar(
+            if (!isShortsDestination && !isSearchDestination) TopAppBar(
                 title = {
                     Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                         androidx.compose.foundation.layout.Box(
@@ -212,7 +214,7 @@ fun FrameApp(
                         }
                     )
                 }
-                composable(Routes.SUBSCRIPTIONS) { ChannelsScreen(library, onImport = { openImport() }, onOpenChannel = { nav.navigate(Routes.channel(it)) }) }
+                composable(Routes.SUBSCRIPTIONS) { SubscriptionsScreen(library, discovery, onImport = { openImport() }, onOpenChannel = { nav.navigate(Routes.channel(it)) }, onOpenVideo = openVideo) }
                 composable(Routes.LIBRARY) {
                     LibraryScreen(
                         vm = library,
@@ -238,7 +240,7 @@ fun FrameApp(
                 }
                 composable(Routes.HISTORY) { HistoryScreen(library, openVideo, onImport = { openImport() }) }
                 composable(Routes.LIKED) { LikedScreen(library, openVideo, onImport = { openImport() }) }
-                composable(Routes.SEARCH) { SearchScreen(search, openVideo) { url -> nav.navigate(Routes.channel(url)) } }
+                composable(Routes.SEARCH) { SearchScreen(search, openVideo, onOpenChannel = { url -> nav.navigate(Routes.channel(url)) }, onBack = { nav.popBackStack() }) }
                 composable(Routes.DOWNLOADS) { DownloadsScreen(container.downloads) { id -> nav.navigate(Routes.localPlayer(id)) } }
                 composable(Routes.SETTINGS) {
                     SettingsScreen(
