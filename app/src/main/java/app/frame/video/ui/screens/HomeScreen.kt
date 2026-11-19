@@ -277,7 +277,7 @@ fun HomeScreen(
                         OutlinedButton(onClick = discovery::refresh) { Text("Try again") }
                         OutlinedButton(onClick = onOpenSearch) { Text("Search videos") }
                     }
-                    if (subscriptions.isEmpty()) {
+                    if (subscribedUploads.isEmpty()) {
                         OutlinedButton(onClick = onOpenChannels) { Text("Browse subscriptions") }
                     }
                 }
