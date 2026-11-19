@@ -515,16 +515,13 @@ fun SubscriptionsScreen(
             )
             else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 16.dp)) {
                 items(feed.videos, key = { it.videoId }) { video ->
-                    VideoRow(
-                        app.frame.video.data.local.VideoEntity(
-                            id = video.videoId,
-                            title = video.title?.takeIf { it.isNotBlank() } ?: "YouTube video",
-                            channelId = video.channelId,
-                            thumbnailUrl = video.thumbnailUrl,
-                            durationSeconds = video.durationSeconds,
-                            source = "YOUTUBE"
-                        ),
-                        onOpenVideo
+                    HomeVideoItem(
+                        videoId = video.videoId,
+                        title = video.title?.takeIf { it.isNotBlank() } ?: "YouTube video",
+                        thumbnail = video.thumbnailUrl,
+                        channel = "Latest upload",
+                        duration = video.durationSeconds,
+                        onClick = { onOpenVideo(video.videoId) }
                     )
                 }
             }

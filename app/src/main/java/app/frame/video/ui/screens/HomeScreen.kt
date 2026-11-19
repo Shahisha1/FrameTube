@@ -263,7 +263,7 @@ private fun SectionHeading(title: String, onRefresh: (() -> Unit)?) {
 }
 
 @Composable
-private fun HomeVideoItem(
+fun HomeVideoItem(
     videoId: String,
     title: String,
     thumbnail: String?,

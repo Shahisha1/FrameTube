@@ -108,15 +108,13 @@ fun ChannelDetailScreen(
                     androidx.compose.foundation.lazy.LazyColumn(Modifier.weight(1f)) {
                         items(state.videos.size, key = { state.videos[it].videoId }) { index ->
                             val video = state.videos[index]
-                            VideoRow(
-                                VideoEntity(
-                                    id = video.videoId,
-                                    title = video.title ?: "Video ${video.videoId}",
-                                    channelId = video.channelId,
-                                    thumbnailUrl = video.thumbnailUrl,
-                                    source = "YOUTUBE"
-                                ),
-                                onOpenVideo
+                            HomeVideoItem(
+                                videoId = video.videoId,
+                                title = video.title?.takeIf { it.isNotBlank() } ?: "Video ${video.videoId}",
+                                thumbnail = video.thumbnailUrl,
+                                channel = profile.name,
+                                duration = video.durationSeconds,
+                                onClick = { onOpenVideo(video.videoId) }
                             )
                         }
                     }
