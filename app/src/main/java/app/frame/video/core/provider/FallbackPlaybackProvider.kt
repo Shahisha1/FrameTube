@@ -15,7 +15,17 @@ class FallbackPlaybackProvider(
         var firstFailure: PlaybackResolution.Failed? = null
         for (provider in providers) {
             if (!provider.supports(videoId)) continue
-            when (val result = provider.resolve(videoId)) {
+            val result = try {
+                provider.resolve(videoId)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                PlaybackResolution.Failed(
+                    PlaybackState.NETWORK_ERROR,
+                    error.message?.takeIf { it.isNotBlank() } ?: "Playback provider failed unexpectedly."
+                )
+            }
+            when (result) {
                 is PlaybackResolution.Ready -> return result
                 is PlaybackResolution.Failed -> if (firstFailure == null) firstFailure = result
             }

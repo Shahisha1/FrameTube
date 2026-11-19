@@ -20,6 +20,32 @@ class FallbackPlaybackProviderTest {
     }
 
     @Test
+    fun providerExceptionDoesNotBlockLaterProvider() = runBlocking {
+        val fallback = FallbackPlaybackProvider(
+            listOf(
+                ThrowingProvider(),
+                StubProvider(PlaybackResolution.Ready("https://cdn.example/video.mp4", "video/mp4", "recovered"))
+            )
+        )
+
+        val result = fallback.resolve("abcdefghijk")
+
+        assertEquals("recovered", (result as PlaybackResolution.Ready).sourceLabel)
+    }
+
+    @Test
+    fun cancellationIsNotTreatedAsAProviderFailure() {
+        try {
+            runBlocking {
+                FallbackPlaybackProvider(listOf(CancelledProvider())).resolve("abcdefghijk")
+            }
+            throw AssertionError("Expected cancellation to propagate")
+        } catch (_: kotlinx.coroutines.CancellationException) {
+            // Expected: caller cancellation must not be swallowed.
+        }
+    }
+
+    @Test
     fun firstUsefulFailureIsKeptWhenAllProvidersFail() = runBlocking {
         val fallback = FallbackPlaybackProvider(
             listOf(
@@ -39,5 +65,18 @@ class FallbackPlaybackProviderTest {
         override val providerId = "stub"
         override fun supports(videoId: String) = true
         override suspend fun resolve(videoId: String) = result
+    }
+
+    private class ThrowingProvider : PlaybackProvider {
+        override val providerId = "throwing"
+        override fun supports(videoId: String) = true
+        override suspend fun resolve(videoId: String): PlaybackResolution = error("unexpected provider error")
+    }
+
+    private class CancelledProvider : PlaybackProvider {
+        override val providerId = "cancelled"
+        override fun supports(videoId: String) = true
+        override suspend fun resolve(videoId: String): PlaybackResolution =
+            throw kotlinx.coroutines.CancellationException("caller cancelled")
     }
 }
