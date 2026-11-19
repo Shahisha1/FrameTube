@@ -30,7 +30,7 @@ The debug APK is generated under app/build/outputs/apk/debug/.
 
 Pushes to main and pull requests targeting main run Android CI. The workflow runs unit tests, builds a debug APK, checks that the APK is non-empty, and uploads FrameTube-debug as a downloadable Actions artifact for 7 days.
 
-A signed release APK is built and attached to a GitHub Release only when a strict version tag such as v1.2.3 is pushed. Set these repository Actions secrets first:
+A signed release APK is built and attached to a GitHub Release when you either run **Actions -> Release APK -> Run workflow** from `main` and enter a version such as `1.2.3`, or push a strict version tag such as `v1.2.3` yourself. The manual workflow creates the tag automatically. Set these repository Actions secrets first:
 
 - FRAME_RELEASE_KEYSTORE_BASE64
 - FRAME_RELEASE_KEYSTORE_PASSWORD
