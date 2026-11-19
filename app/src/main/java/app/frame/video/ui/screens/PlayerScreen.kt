@@ -20,8 +20,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.filled.ThumbUpOffAlt
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Pause
@@ -295,7 +295,7 @@ fun PlayerScreen(
                             }
                         ) {
                             Icon(
-                                if (liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                if (liked) Icons.Default.ThumbUp else Icons.Default.ThumbUpOffAlt,
                                 contentDescription = if (liked) "Unlike video" else "Like video",
                                 tint = if (liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                             )
