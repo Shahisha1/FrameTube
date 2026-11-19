@@ -182,35 +182,36 @@ fun PlayerScreen(
             Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(videoTitle, style = MaterialTheme.typography.titleLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-            channel?.let { profile ->
+            if (channel != null) {
+                val profile = channel!!
                 Row(
                     Modifier.fillMaxWidth().padding(vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(11.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     if (!profile.avatarUrl.isNullOrBlank()) {
                         AsyncImage(
                             model = profile.avatarUrl,
                             contentDescription = "${profile.name} channel",
                             contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                            modifier = Modifier.size(42.dp).clip(CircleShape).clickable { onOpenChannel(profile.id) }
+                            modifier = Modifier.size(48.dp).clip(CircleShape).clickable { onOpenChannel(profile.id) }
                         )
                     } else {
                         Icon(
                             Icons.Default.AccountCircle,
                             contentDescription = null,
-                            modifier = Modifier.size(42.dp).clickable { onOpenChannel(profile.id) },
+                            modifier = Modifier.size(48.dp).clickable { onOpenChannel(profile.id) },
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     Column(
                         Modifier.weight(1f).clickable { onOpenChannel(profile.id) },
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
-                        Text(profile.name, style = MaterialTheme.typography.titleSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, maxLines = 1)
+                        Text(videoTitle, style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                        Text(profile.name, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                         profile.subscriberCount?.let {
-                            Text("${formatChannelCount(it)} subscribers", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("${formatChannelCount(it)} subscribers", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     Button(
@@ -227,11 +228,14 @@ fun PlayerScreen(
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (subscribed) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.onSurface,
                             contentColor = if (subscribed) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.background
-                        )
+                        ),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                     ) {
                         Text(if (subscribed) "Subscribed" else "Subscribe")
                     }
                 }
+            } else {
+                Text(videoTitle, style = MaterialTheme.typography.titleLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
             }
 
             Row(
