@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
@@ -119,6 +120,7 @@ fun FrameApp(
     val isShortsDestination = destination?.hierarchy?.any { it.route == Routes.SHORTS } == true
     val isSearchDestination = destination?.hierarchy?.any { it.route == Routes.SEARCH } == true
     val isWatchDestination = destination?.hierarchy?.any { it.route == Routes.PLAYER || it.route == Routes.DETAILS || it.route == Routes.LOCAL_PLAYER } == true
+    val isRootDestination = items.any { item -> destination?.hierarchy?.any { it.route == item.route } == true }
     val showNavigation = !isWatchDestination
     val openVideo = { id: String -> nav.navigate(Routes.player(id)) }
     val openImport = { nav.navigate(Routes.IMPORT) }
@@ -128,16 +130,41 @@ fun FrameApp(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             if (!isShortsDestination && !isSearchDestination && !isWatchDestination) TopAppBar(
-                title = {
-                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                        androidx.compose.foundation.layout.Box(
-                            Modifier.padding(end = 6.dp)
-                                .background(MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.RoundedCornerShape(6.dp))
-                                .padding(horizontal = 5.dp, vertical = 2.dp)
-                        ) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(20.dp))
+                navigationIcon = {
+                    if (!isRootDestination) {
+                        IconButton(onClick = { nav.popBackStack() }) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                         }
-                        Text("FrameTube", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    }
+                },
+                title = {
+                    if (isRootDestination) {
+                        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            androidx.compose.foundation.layout.Box(
+                                Modifier.padding(end = 6.dp)
+                                    .background(MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 5.dp, vertical = 2.dp)
+                            ) {
+                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(20.dp))
+                            }
+                            Text("FrameTube", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        }
+                    } else {
+                        Text(
+                            when (destination?.route) {
+                                Routes.CHANNEL -> "Channel"
+                                Routes.PLAYLIST -> "Playlist"
+                                Routes.PLAYLISTS -> "Playlists"
+                                Routes.HISTORY -> "History"
+                                Routes.LIKED -> "Liked videos"
+                                Routes.DOWNLOADS -> "Downloads"
+                                Routes.SETTINGS -> "Settings"
+                                Routes.IMPORT -> "Import"
+                                else -> "FrameTube"
+                            },
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 },
                 actions = {
