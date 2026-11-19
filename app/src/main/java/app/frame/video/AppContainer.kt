@@ -11,6 +11,7 @@ import app.frame.video.data.remote.newpipe.NewPipeVideoProvider
 import app.frame.video.data.worker.MetadataEnrichmentScheduler
 import app.frame.video.core.provider.piped.PipedApi
 import app.frame.video.core.provider.piped.PipedPlaybackProvider
+import app.frame.video.data.download.DownloadStore
 import app.frame.video.data.importer.TakeoutImporter
 import app.frame.video.data.local.FrameDatabaseProvider
 import app.frame.video.data.repository.RoomLibraryRepository
@@ -23,6 +24,7 @@ class AppContainer(context: Context) {
     val contentResolver: ContentResolver get() = appContext.contentResolver
     val database by lazy { FrameDatabaseProvider.get(appContext) }
     val preferences by lazy { FramePreferences(appContext) }
+    val downloads by lazy { DownloadStore(appContext) }
     val library: LibraryRepository by lazy { RoomLibraryRepository(database.libraryDao()) }
     val importer by lazy { TakeoutImporter(database) }
     val metadataEnrichmentScheduler by lazy { MetadataEnrichmentScheduler(appContext) }

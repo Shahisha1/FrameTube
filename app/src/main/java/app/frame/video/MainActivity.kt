@@ -16,12 +16,15 @@ class MainActivity : ComponentActivity() {
         val container = (application as FrameApplication).container
         setContent {
             val saved by container.preferences.darkMode.collectAsStateWithLifecycle(initialValue = null)
+            val dynamicColor by container.preferences.dynamicColor.collectAsStateWithLifecycle(initialValue = false)
             val dark = saved ?: true
-            FrameTheme(darkTheme = dark) {
+            FrameTheme(darkTheme = dark, dynamicColor = dynamicColor) {
                 FrameApp(
                     container = container,
                     darkTheme = dark,
-                    onToggleTheme = { enabled -> lifecycleScope.launch { container.preferences.setDarkMode(enabled) } }
+                    dynamicColor = dynamicColor,
+                    onToggleTheme = { enabled -> lifecycleScope.launch { container.preferences.setDarkMode(enabled) } },
+                    onToggleDynamicColor = { enabled -> lifecycleScope.launch { container.preferences.setDynamicColor(enabled) } }
                 )
             }
         }
