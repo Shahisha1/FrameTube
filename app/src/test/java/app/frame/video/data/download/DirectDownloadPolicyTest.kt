@@ -33,7 +33,8 @@ class DirectDownloadPolicyTest {
             "https://m.youtube.com/video.mp4",
             "https://youtu.be/abcdefghijk",
             "https://r1---sn.googlevideo.com/video.mp4",
-            "https://youtube-nocookie.com/video.mp4"
+            "https://youtube-nocookie.com/video.mp4",
+            "https://youtube.com./video.mp4"
         ).forEach { url ->
             assertThrows(IllegalArgumentException::class.java) { DirectDownloadPolicy.validate(url) }
         }
@@ -46,6 +47,9 @@ class DirectDownloadPolicyTest {
         }
         assertThrows(IllegalArgumentException::class.java) {
             DirectDownloadPolicy.validate("https:///video.mp4")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            DirectDownloadPolicy.validate("//media.example.org/video.mp4")
         }
     }
 }

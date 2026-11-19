@@ -18,8 +18,8 @@ object DirectDownloadPolicy {
         } catch (_: Exception) {
             throw IllegalArgumentException("Enter a valid direct HTTPS file link.")
         }
-        require(uri.scheme.equals("https", ignoreCase = true)) { "Use a secure https:// video link." }
-        val host = uri.host?.lowercase(Locale.ROOT).orEmpty()
+        require(uri.scheme?.equals("https", ignoreCase = true) == true) { "Use a secure https:// video link." }
+        val host = uri.host?.lowercase(Locale.ROOT)?.trimEnd('.').orEmpty()
         require(host.isNotBlank()) { "That link has no valid host." }
         val blockedHosts = listOf("youtube.com", "youtu.be", "youtube-nocookie.com", "googlevideo.com")
         require(blockedHosts.none { host == it || host.endsWith(".$it") }) {
