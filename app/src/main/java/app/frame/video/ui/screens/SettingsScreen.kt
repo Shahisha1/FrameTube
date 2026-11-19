@@ -5,11 +5,19 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material3.Icon
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
@@ -27,6 +35,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import app.frame.video.core.datastore.PipedConfig
 import app.frame.video.core.provider.piped.PipedApi
@@ -69,7 +78,7 @@ fun SettingsScreen(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        SettingsSection("Appearance", "Frame's look and color behavior") {
+        SettingsSection("Appearance", "Frame's look and color behavior", Icons.Default.Settings) {
             SettingSwitch("Dark theme", "Use Frame's charcoal surfaces and red accent.", darkTheme, onCheckedChange = onToggleTheme)
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             SettingSwitch(
@@ -97,7 +106,7 @@ fun SettingsScreen(
             }
         }
 
-        SettingsSection("SponsorBlock", "Skip community-submitted segments during playback") {
+        SettingsSection("Playback", "SponsorBlock and playback preferences", Icons.Default.PlayArrow) {
             SettingSwitch(
                 "Enable automatic skipping",
                 "Frame checks the public SponsorBlock database for selected categories.",
@@ -125,7 +134,7 @@ fun SettingsScreen(
             Text("Segment timing is community-submitted and may be inaccurate.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
-        SettingsSection("Feed quality", "Reduce repeats and content you do not want to see") {
+        SettingsSection("Feed preferences", "Control recommendations and repeated uploads", Icons.Default.Search) {
             SettingSwitch(
                 "Hide Shorts",
                 "Hide channel uploads that are one minute or shorter when duration is available.",
@@ -160,7 +169,7 @@ fun SettingsScreen(
             }
         }
 
-        SettingsSection("Playback source", "Optional third-party playback") {
+        SettingsSection("Playback source", "Optional third-party playback", Icons.Default.OpenInNew) {
             Text("Piped", style = MaterialTheme.typography.titleMedium)
             Text("Use a Piped server you choose as an alternate playback source. Off by default.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             OutlinedTextField(
@@ -182,7 +191,7 @@ fun SettingsScreen(
             }
         }
 
-        SettingsSection("Your library", "Your saved activity stays on this device") {
+        SettingsSection("Your library", "Your saved activity stays on this device", Icons.Default.VideoLibrary) {
             ListItem(
                 headlineContent = { Text("Import Google Takeout") },
                 supportingContent = { Text("Review an archive before anything is saved.") },
@@ -215,14 +224,31 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun SettingsSection(title: String, subtitle: String, content: @Composable () -> Unit) {
+private fun SettingsSection(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    content: @Composable () -> Unit
+) {
     Column(
-        Modifier.fillMaxWidth().padding(vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp)
+            )
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
         content()
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)

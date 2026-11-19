@@ -20,8 +20,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.filled.ThumbUpOffAlt
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Pause
@@ -182,43 +182,51 @@ fun PlayerScreen(
             Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            Text(
+                videoTitle,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                lineHeight = MaterialTheme.typography.titleLarge.lineHeight
+            )
+            metadata?.let { videoMetadata ->
+                val details = listOfNotNull(
+                    videoMetadata.viewCount?.takeIf { it >= 0L }?.let { "${compactVideoCount(it)} views" },
+                    videoMetadata.textualUploadDate?.takeIf { it.isNotBlank() }
+                ).joinToString(" · ")
+                if (details.isNotBlank()) {
+                    Text(details, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
             if (channel != null) {
                 val profile = channel!!
                 Row(
                     Modifier.fillMaxWidth().padding(vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     if (!profile.avatarUrl.isNullOrBlank()) {
                         AsyncImage(
                             model = profile.avatarUrl,
                             contentDescription = "${profile.name} channel",
                             contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                            modifier = Modifier.size(48.dp).clip(CircleShape).clickable { onOpenChannel(profile.id) }
+                            modifier = Modifier.size(42.dp).clip(CircleShape).clickable { onOpenChannel(profile.id) }
                         )
                     } else {
                         Icon(
                             Icons.Default.AccountCircle,
                             contentDescription = null,
-                            modifier = Modifier.size(48.dp).clickable { onOpenChannel(profile.id) },
+                            modifier = Modifier.size(42.dp).clickable { onOpenChannel(profile.id) },
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     Column(
                         Modifier.weight(1f).clickable { onOpenChannel(profile.id) },
-                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        Text(videoTitle, style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-                        Text(profile.name, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-                        metadata?.let { videoMetadata ->
-                            val details = listOfNotNull(
-                                videoMetadata.viewCount?.takeIf { it >= 0L }?.let { "${compactVideoCount(it)} views" },
-                                videoMetadata.textualUploadDate?.takeIf { it.isNotBlank() }
-                            ).joinToString(" · ")
-                            if (details.isNotBlank()) Text(details, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-                        }
+                        Text(profile.name, style = MaterialTheme.typography.titleSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, maxLines = 1)
                         profile.subscriberCount?.let {
-                            Text("${formatChannelCount(it)} subscribers", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("${formatChannelCount(it)} subscribers", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     Button(
@@ -236,7 +244,7 @@ fun PlayerScreen(
                             containerColor = if (subscribed) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.onSurface,
                             contentColor = if (subscribed) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.background
                         ),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                     ) {
                         Text(if (subscribed) "Subscribed" else "Subscribe")
                     }
@@ -256,18 +264,10 @@ fun PlayerScreen(
                     } else {
                         Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(48.dp))
                     }
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(videoTitle, style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-                        Text(metadata?.channelName.orEmpty(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        val details = listOfNotNull(
-                            metadata?.viewCount?.takeIf { it >= 0L }?.let { "${compactVideoCount(it)} views" },
-                            metadata?.textualUploadDate?.takeIf { it.isNotBlank() }
-                        ).joinToString(" · ")
-                        if (details.isNotBlank()) Text(details, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(metadata?.channelName.orEmpty(), style = MaterialTheme.typography.titleSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
                     }
                 }
-            } else {
-                Text(videoTitle, style = MaterialTheme.typography.titleLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
             }
 
             Row(
@@ -295,7 +295,7 @@ fun PlayerScreen(
                             }
                         ) {
                             Icon(
-                                if (liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                if (liked) Icons.Default.ThumbUp else Icons.Default.ThumbUpOffAlt,
                                 contentDescription = if (liked) "Unlike video" else "Like video",
                                 tint = if (liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                             )
