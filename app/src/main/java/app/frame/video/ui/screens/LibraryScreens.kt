@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -469,7 +470,7 @@ fun SubscriptionsScreen(
             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
         ) {
             Text("Subscriptions", modifier = Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-            IconButton(onClick = discovery::refresh) { Icon(Icons.Default.Search, contentDescription = "Refresh subscriptions") }
+            IconButton(onClick = discovery::refresh) { Icon(Icons.Default.Refresh, contentDescription = "Refresh subscriptions") }
         }
         if (channels.itemCount > 0) {
             androidx.compose.foundation.lazy.LazyRow(
