@@ -145,7 +145,7 @@ fun HomeScreen(
                 HomeVideoItem(
                     title = video.title?.takeIf { it.isNotBlank() } ?: "Untitled video",
                     thumbnail = video.thumbnailUrl,
-                    channel = video.channelId?.takeIf { it.isNotBlank() } ?: "YouTube",
+                    channel = "YouTube",
                     duration = video.durationSeconds,
                     onClick = { onOpenRecommendation(video.videoId, recommendations) }
                 )
