@@ -7,6 +7,34 @@ plugins {
 
 ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 
+// A semantic version supplied by the release workflow (for example 1.2.3).
+// The default keeps local development builds independent of Git tags.
+val releaseVersion = providers.gradleProperty("releaseVersion").orElse("0.1.0").get()
+val semanticVersion = Regex("""^([0-9]+)[.]([0-9]+)[.]([0-9]+)$""").matchEntire(releaseVersion)
+val releaseVersionCode = semanticVersion?.let { match ->
+    val major = match.groupValues[1].toInt()
+    val minor = match.groupValues[2].toInt()
+    val patch = match.groupValues[3].toInt()
+    require(major < 2100 && minor < 1000 && patch < 1000) {
+        "Version components are too large for the FrameTube versionCode scheme: $releaseVersion"
+    }
+    val code = major * 1_000_000 + minor * 1_000 + patch
+    require(code > 0) { "The release version must produce a positive Android versionCode: $releaseVersion" }
+    code
+} ?: 1
+
+// Release signing is configured from environment variables only. Never commit a keystore.
+val releaseStoreFile = System.getenv("FRAME_RELEASE_STORE_FILE")
+val releaseStorePassword = System.getenv("FRAME_RELEASE_STORE_PASSWORD")
+val releaseKeyAlias = System.getenv("FRAME_RELEASE_KEY_ALIAS")
+val releaseKeyPassword = System.getenv("FRAME_RELEASE_KEY_PASSWORD")
+val releaseSigningConfigured = listOf(
+    releaseStoreFile,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword
+).all { !it.isNullOrBlank() }
+
 android {
     namespace = "app.frame.video"
     compileSdk = 35
@@ -15,10 +43,29 @@ android {
         applicationId = "app.frame.video"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = releaseVersionCode
+        versionName = releaseVersion
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
+    }
+
+    if (releaseSigningConfigured) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            if (releaseSigningConfigured) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
     }
 
     buildFeatures { compose = true }
