@@ -14,6 +14,8 @@ import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Subscriptions
+import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -59,6 +61,8 @@ import app.frame.video.ui.screens.PlaylistDetailScreen
 import app.frame.video.ui.screens.PlaylistsScreen
 import app.frame.video.ui.screens.SearchScreen
 import app.frame.video.ui.screens.SettingsScreen
+import app.frame.video.ui.screens.LibraryScreen
+import app.frame.video.ui.screens.ShortsScreen
 import app.frame.video.ui.viewmodel.ImportViewModel
 import app.frame.video.ui.viewmodel.ChannelDetailViewModel
 import app.frame.video.ui.viewmodel.LibraryViewModel
@@ -94,22 +98,22 @@ fun FrameApp(
 
     val items = listOf(
         NavItem(Routes.HOME, "Home", Icons.Default.Home),
+        NavItem(Routes.SHORTS, "Shorts", Icons.Default.PlayArrow),
         NavItem(Routes.SUBSCRIPTIONS, "Subscriptions", Icons.Default.Subscriptions),
-        NavItem(Routes.PLAYLISTS, "Playlists", Icons.Default.List),
-        NavItem(Routes.HISTORY, "History", Icons.Default.History),
-        NavItem(Routes.LIKED, "Liked", Icons.Default.Favorite)
+        NavItem(Routes.LIBRARY, "Library", Icons.Default.VideoLibrary)
     )
     val backStack by nav.currentBackStackEntryAsState()
     val destination = backStack?.destination
     val showNavigation = items.any { destination?.hierarchy?.any { d -> d.route == it.route } == true }
-        val openVideo = { id: String -> nav.navigate(Routes.details(id)) }
+    val isShortsDestination = destination?.hierarchy?.any { it.route == Routes.SHORTS } == true
+    val openVideo = { id: String -> nav.navigate(Routes.details(id)) }
     val openImport = { nav.navigate(Routes.IMPORT) }
     val openSearch = { nav.navigate(Routes.SEARCH) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
+            if (!isShortsDestination) TopAppBar(
                 title = {
                     Column {
                         Text("FrameTube", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
@@ -125,7 +129,7 @@ fun FrameApp(
             )
         },
         bottomBar = {
-            if (showNavigation) NavigationBar(
+            if (showNavigation && !isShortsDestination) NavigationBar(
                 modifier = Modifier.height(64.dp),
                 containerColor = MaterialTheme.colorScheme.surface,
                 contentColor = MaterialTheme.colorScheme.onSurface,
@@ -157,13 +161,43 @@ fun FrameApp(
                         onOpenImport = { openImport() },
                         onOpenChannels = { nav.navigate(Routes.SUBSCRIPTIONS) },
                         onOpenSearch = { openSearch() },
+                        onExploreTopic = { topic ->
+                            search.setQuery(topic)
+                            search.searchNow()
+                            openSearch()
+                        },
                         onOpenVideo = openVideo,
                         hideShorts = hideShorts,
                         mutedKeywords = mutedKeywords,
                         maxPerChannel = maxPerChannel
                     )
                 }
+                composable(Routes.SHORTS) {
+                    ShortsScreen(
+                        discovery = discovery,
+                        providers = container.providerManager,
+                        library = container.library,
+                        onOpenVideo = openVideo,
+                        onClose = {
+                            nav.navigate(Routes.HOME) {
+                                popUpTo(nav.graph.findStartDestination().id) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        }
+                    )
+                }
                 composable(Routes.SUBSCRIPTIONS) { ChannelsScreen(library, onImport = { openImport() }, onOpenChannel = { nav.navigate(Routes.channel(it)) }) }
+                composable(Routes.LIBRARY) {
+                    LibraryScreen(
+                        vm = library,
+                        downloads = container.downloads,
+                        onOpenVideo = openVideo,
+                        onOpenChannel = { nav.navigate(Routes.channel(it)) },
+                        onOpenPlaylist = { nav.navigate(Routes.playlist(it)) },
+                        onPlayDownload = { id -> nav.navigate(Routes.localPlayer(id)) },
+                        onImport = openImport
+                    )
+                }
                 composable(Routes.PLAYLISTS) { PlaylistsScreen(library, onOpenPlaylist = { nav.navigate(Routes.playlist(it)) }, onImport = { openImport() }) }
                 composable(Routes.CHANNEL) { entry ->
                     val id = entry.arguments?.getString("channelId").orEmpty()

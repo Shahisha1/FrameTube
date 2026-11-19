@@ -13,7 +13,8 @@ data class ChannelProfile(
 
 data class ChannelPageData(
     val profile: ChannelProfile,
-    val videos: List<VideoMetadataResult>
+    val videos: List<VideoMetadataResult>,
+    val shorts: List<VideoMetadataResult> = emptyList()
 )
 
 /** Channel extraction contract; extractor types stay inside the data layer. */
