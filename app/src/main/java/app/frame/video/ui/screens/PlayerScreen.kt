@@ -9,9 +9,14 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Replay10
@@ -28,6 +33,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -38,6 +44,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,6 +69,9 @@ import app.frame.video.domain.playback.PlaybackQueueMode
 import app.frame.video.data.sponsorblock.SponsorBlockClient
 import app.frame.video.data.sponsorblock.SponsorSegment
 import app.frame.video.ui.components.openOnYouTube
+import app.frame.video.domain.LibraryRepository
+import app.frame.video.domain.provider.VideoProvider
+import kotlinx.coroutines.launch
 import app.frame.video.ui.viewmodel.PlayerUiState
 import app.frame.video.ui.viewmodel.PlayerViewModel
 import kotlinx.coroutines.CancellationException
@@ -74,11 +85,25 @@ fun PlayerScreen(
     preferences: FramePreferences,
     onBack: () -> Unit,
     onOpenSettings: () -> Unit,
-    onQueueItemChanged: (String) -> Unit
+    onQueueItemChanged: (String) -> Unit,
+    library: LibraryRepository,
+    metadataProvider: VideoProvider
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val state by vm.state.collectAsStateWithLifecycle()
     val sessionState by session.state.collectAsStateWithLifecycle()
+    val liked by remember(videoId) { library.observeIsLiked(videoId) }.collectAsStateWithLifecycle(initialValue = false)
+    val metadata by produceState<app.frame.video.domain.provider.VideoMetadataResult?>(initialValue = null, videoId) {
+        try {
+            value = metadataProvider.getVideoMetadata(videoId)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            value = null
+        }
+    }
+    val videoTitle = metadata?.title?.takeIf { it.isNotBlank() } ?: "Video"
     val upcomingVideo = sessionState.queue.entries.getOrNull(sessionState.queue.currentIndex + 1)
     LaunchedEffect(sessionState.currentVideoId, sessionState.queue.mode) {
         val nextId = sessionState.currentVideoId
@@ -91,70 +116,108 @@ fun PlayerScreen(
             onQueueItemChanged(nextId)
         }
     }
-    Column(Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("NOW PLAYING", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-            Text("Video player", style = MaterialTheme.typography.headlineSmall)
-        }
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(0.dp)
+    ) {
         when (val s = state) {
             PlayerUiState.Loading -> Card(
                 modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                shape = RoundedCornerShape(0.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         CircularProgressIndicator()
-                        Text("Finding a playable source", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Loading video", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
-            is PlayerUiState.Ready -> {
-                ExoSurface(videoId, s.source, vm, session, preferences)
-                Text(s.source.sourceLabel, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+            is PlayerUiState.Ready -> ExoSurface(videoId, s.source, vm, session, preferences)
             is PlayerUiState.Failed -> Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Can't play this video", style = MaterialTheme.typography.titleLarge)
+                    Text("Video unavailable", style = MaterialTheme.typography.titleLarge)
                     Text(s.message, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Button(onClick = vm::load) { Text("Try again") }
                 }
             }
         }
-        if (sessionState.queue.entries.size > 1) {
+
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(videoTitle, style = MaterialTheme.typography.titleLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+            Text("YouTube video · $videoId", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 2.dp),
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("UP NEXT", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                    Text(
-                        upcomingVideo?.title ?: "End of queue",
-                        style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 2
+                IconToggleButton(
+                    checked = liked,
+                    onCheckedChange = { requested ->
+                        scope.launch {
+                            try {
+                                library.ensureVideo(videoId, videoTitle, metadata?.thumbnailUrl)
+                                library.setLiked(videoId, requested)
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (_: Exception) { }
+                        }
+                    }
+                ) {
+                    Icon(
+                        if (liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = if (liked) "Unlike video" else "Like video",
+                        tint = if (liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                     )
                 }
-                IconButton(onClick = session::playPrevious, enabled = sessionState.queue.hasPrevious) {
-                    Icon(Icons.Default.SkipPrevious, contentDescription = "Play previous video")
-                }
-                IconButton(onClick = session::playNext, enabled = sessionState.queue.hasNext) {
-                    Icon(Icons.Default.SkipNext, contentDescription = "Play next video")
+                Text(if (liked) "Liked" else "Like", style = MaterialTheme.typography.labelMedium)
+                IconButton(onClick = {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(android.content.Intent.EXTRA_TEXT, "https://www.youtube.com/watch?v=$videoId")
+                    }
+                    context.startActivity(android.content.Intent.createChooser(intent, "Share video"))
+                }) { Icon(Icons.Default.Share, contentDescription = "Share video") }
+                Text("Share", style = MaterialTheme.typography.labelMedium)
+                androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+                TextButton(onClick = onOpenSettings) {
+                    Icon(Icons.Default.Settings, contentDescription = null)
+                    Text("Settings", modifier = Modifier.padding(start = 4.dp))
                 }
             }
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedButton(onClick = { openOnYouTube(context, videoId) }, modifier = Modifier.weight(1f)) {
+
+            if (sessionState.queue.entries.size > 1) {
+                androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text("Up next", style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+                        Text(upcomingVideo?.title ?: "End of queue", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+                    }
+                    IconButton(onClick = session::playPrevious, enabled = sessionState.queue.hasPrevious) {
+                        Icon(Icons.Default.SkipPrevious, contentDescription = "Play previous video")
+                    }
+                    IconButton(onClick = session::playNext, enabled = sessionState.queue.hasNext) {
+                        Icon(Icons.Default.SkipNext, contentDescription = "Play next video")
+                    }
+                }
+            }
+
+            OutlinedButton(onClick = { openOnYouTube(context, videoId) }, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Default.OpenInNew, contentDescription = null)
-                Text("Open source", modifier = Modifier.padding(start = 6.dp))
-            }
-            OutlinedButton(onClick = onOpenSettings, modifier = Modifier.weight(1f)) {
-                Icon(Icons.Default.Settings, contentDescription = null)
-                Text("Settings", modifier = Modifier.padding(start = 6.dp))
+                Text("Open on YouTube", modifier = Modifier.padding(start = 6.dp))
             }
         }
-        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Back to video") }
     }
 }
 

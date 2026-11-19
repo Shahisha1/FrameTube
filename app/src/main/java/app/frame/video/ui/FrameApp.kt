@@ -110,7 +110,7 @@ fun FrameApp(
     val showNavigation = items.any { destination?.hierarchy?.any { d -> d.route == it.route } == true }
     val isShortsDestination = destination?.hierarchy?.any { it.route == Routes.SHORTS } == true
     val isSearchDestination = destination?.hierarchy?.any { it.route == Routes.SEARCH } == true
-    val openVideo = { id: String -> nav.navigate(Routes.details(id)) }
+    val openVideo = { id: String -> nav.navigate(Routes.player(id)) }
     val openImport = { nav.navigate(Routes.IMPORT) }
     val openSearch = { nav.navigate(Routes.SEARCH) }
 
@@ -285,7 +285,9 @@ fun FrameApp(
                                 popUpTo(Routes.PLAYER) { inclusive = true }
                                 launchSingleTop = true
                             }
-                        }
+                        },
+                        library = container.library,
+                        metadataProvider = container.providerManager.metadataProvider("newpipe")!!
                     )
                 }
                 composable(Routes.LOCAL_PLAYER) { entry ->
