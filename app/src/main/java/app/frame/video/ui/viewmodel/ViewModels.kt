@@ -139,7 +139,7 @@ class ImportViewModel(
             try {
                 val parsed = importer.parse { contentResolver.openInputStream(uri) ?: error("Could not open the selected file.") }
                 _state.value = if (parsed.result.filesFound.isEmpty())
-                    ImportUiState.Failed("No supported YouTube files were found in this archive. Frame looks for subscriptions, playlists and activity history files.")
+                    ImportUiState.Failed("No supported YouTube files were found in this archive. FrameTube looks for subscriptions, playlists and activity history files.")
                 else ImportUiState.Preview(sourceName, parsed)
             } catch (e: CancellationException) {
                 throw e

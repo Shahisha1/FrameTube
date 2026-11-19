@@ -24,7 +24,7 @@ class PipedApi {
             conn.connectTimeout = 10_000
             conn.readTimeout = 15_000
             conn.setRequestProperty("Accept", "application/json")
-            conn.setRequestProperty("User-Agent", "Frame/0.1")
+            conn.setRequestProperty("User-Agent", "FrameTube/0.1")
             val code = conn.responseCode
             val body = (if (code in 200..299) conn.inputStream else conn.errorStream)?.use { readCapped(it) }
             if (code in 200..299) {

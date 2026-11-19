@@ -79,14 +79,14 @@ fun SettingsScreen(
 
         ListItem(headlineContent = { Text("Import Google Takeout") }, supportingContent = { Text("Review an archive before anything is saved.") }, trailingContent = { TextButton(onClick = onImport) { Text("Open") } })
         ListItem(headlineContent = { Text("Delete library data") }, supportingContent = { Text("Removes everything imported from Takeout from this device.") }, trailingContent = { TextButton(onClick = { showDelete = true }) { Text("Delete") } })
-        ListItem(headlineContent = { Text("About Frame") }, supportingContent = { Text("Version 0.1.0 · Your library stays on this device.") })
+        ListItem(headlineContent = { Text("About FrameTube") }, supportingContent = { Text("Version 0.1.0 · Free software, GPL-3.0-or-later · Your library stays on this device.") })
     }
 
     if (showConsent) AlertDialog(
         onDismissRequest = { showConsent = false },
         title = { Text("Use unofficial playback?") },
         text = {
-            Text("This is not an official YouTube feature and may go against YouTube's terms. It can stop working at any time.\n\nThe Piped server you chose will see the IDs of videos you play and your IP address. Frame sends nothing else: no account, no Takeout files.\n\nFrame does not save or download video.")
+            Text("This is not an official YouTube feature and may go against YouTube's terms. It can stop working at any time.\n\nThe Piped server you chose will see the IDs of videos you play and your IP address. FrameTube sends nothing else: no account, no Takeout files.\n\nFrame does not save or download video.")
         },
         confirmButton = { Button(onClick = { showConsent = false; onSetPiped(true, urlText) }) { Text("I understand, enable") } },
         dismissButton = { TextButton(onClick = { showConsent = false }) { Text("Cancel") } }

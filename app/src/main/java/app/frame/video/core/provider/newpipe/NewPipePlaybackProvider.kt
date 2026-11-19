@@ -54,7 +54,7 @@ class NewPipePlaybackProvider : PlaybackProvider {
 
         return PlaybackResolution.Failed(
             PlaybackState.UNSUPPORTED,
-            "YouTube did not provide a stream Frame can play. Try again later."
+            "YouTube did not provide a stream FrameTube can play. Try again later."
         )
     }
 

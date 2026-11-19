@@ -65,7 +65,7 @@ private fun ExoSurface(source: PlaybackResolution.Ready, vm: PlayerViewModel) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val player = remember(source.uri) {
-        // No cache is configured on purpose: Frame does not store video.
+        // No cache is configured on purpose: FrameTube does not store video.
         ExoPlayer.Builder(context).build().apply {
             val item = MediaItem.Builder().setUri(source.uri).apply { source.mimeType?.let { setMimeType(it) } }.build()
             setMediaItem(item)

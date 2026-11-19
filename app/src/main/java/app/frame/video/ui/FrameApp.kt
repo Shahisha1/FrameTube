@@ -6,6 +6,8 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Subscriptions
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -15,7 +17,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -31,7 +33,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.ui.res.stringResource
 import app.frame.video.AppContainer
+import app.frame.video.R
 import app.frame.video.core.datastore.PipedConfig
 import app.frame.video.ui.navigation.Routes
 import app.frame.video.ui.screens.ChannelsScreen
@@ -79,10 +83,14 @@ fun FrameApp(container: AppContainer, darkTheme: Boolean, onToggleTheme: (Boolea
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Frame", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary) },
+                title = { Text("FrameTube", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary) },
                 actions = {
-                    TextButton(onClick = { nav.navigate(Routes.SEARCH) }) { Text("Search") }
-                    TextButton(onClick = { nav.navigate(Routes.SETTINGS) }) { Text("Settings") }
+                    IconButton(onClick = { nav.navigate(Routes.SEARCH) }) {
+                        Icon(Icons.Default.Search, contentDescription = stringResource(R.string.action_search))
+                    }
+                    IconButton(onClick = { nav.navigate(Routes.SETTINGS) }) {
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.action_settings))
+                    }
                 }
             )
         },
@@ -106,7 +114,9 @@ fun FrameApp(container: AppContainer, darkTheme: Boolean, onToggleTheme: (Boolea
         }
     ) { padding ->
         NavHost(navController = nav, startDestination = Routes.HOME, modifier = Modifier.padding(padding)) {
-            composable(Routes.HOME) { HomeScreen(library, onOpenImport = { openImport() }, onOpenVideo = openVideo) }
+            composable(Routes.HOME) {
+                HomeScreen(library, onOpenImport = { openImport() }, onOpenSearch = { nav.navigate(Routes.SEARCH) }, onOpenVideo = openVideo)
+            }
             composable(Routes.SUBSCRIPTIONS) { ChannelsScreen(library, onImport = { openImport() }) }
             composable(Routes.PLAYLISTS) { PlaylistsScreen(library, onOpenPlaylist = { nav.navigate(Routes.playlist(it)) }, onImport = { openImport() }) }
             composable(Routes.PLAYLIST) { entry ->

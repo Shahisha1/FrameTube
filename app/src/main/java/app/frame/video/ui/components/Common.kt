@@ -84,7 +84,7 @@ fun VideoRow(video: VideoEntity, onOpen: (String) -> Unit) {
     val idOnly = video.title == video.id
     ListItem(
         headlineContent = { Text(if (idOnly) "Video ${video.id}" else video.title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
-        supportingContent = { Text(if (idOnly) "Saved from Takeout · details not loaded" else video.source.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() }) },
+        supportingContent = { Text(if (idOnly) "Saved in your library · details not loaded" else video.source.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() }) },
         leadingContent = {
             if (!video.thumbnailUrl.isNullOrBlank()) VideoThumbnail(video.thumbnailUrl, Modifier.size(116.dp, 66.dp))
             else Box(Modifier.size(116.dp, 66.dp), contentAlignment = Alignment.Center) {

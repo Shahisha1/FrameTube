@@ -58,7 +58,7 @@ fun DetailsScreen(
                 online?.availability == MetadataAvailability.AVAILABLE ->
                     "Details loaded from YouTube through NewPipe Extractor. Your saved library entry stays on this device."
                 idOnly ->
-                    "This entry came from your Takeout file with no title. Frame could not load live details, but the saved entry remains in your library."
+                    "This entry came from your Takeout file with no title. FrameTube could not load live details, but the saved entry remains in your library."
                 else ->
                     "This entry came from your Takeout file. Live details could not be loaded; the saved entry remains in your library."
             },

@@ -29,6 +29,14 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
+
+    // Every build writes FrameTube.apk (debug and release land in different folders).
+    // applicationVariants is the stable AGP 8.x way to set an exact file name.
+    applicationVariants.all {
+        outputs.all {
+            (this as com.android.build.gradle.internal.api.BaseVariantOutputImpl).outputFileName = "FrameTube.apk"
+        }
+    }
 }
 
 dependencies {

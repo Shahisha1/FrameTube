@@ -30,7 +30,7 @@ class PipedPlaybackProvider(
                 PipedFailureKind.RESTRICTED -> PlaybackResolution.Failed(PlaybackState.RESTRICTED, "This video is private or restricted. It stays in your library.")
                 PipedFailureKind.NETWORK -> PlaybackResolution.Failed(PlaybackState.NETWORK_ERROR, "Could not reach the Piped instance. Check your connection and the instance address.")
                 PipedFailureKind.SERVER -> PlaybackResolution.Failed(PlaybackState.UNAVAILABLE, "The Piped instance returned an error. Try again or use another instance.")
-                PipedFailureKind.BAD_RESPONSE -> PlaybackResolution.Failed(PlaybackState.UNSUPPORTED, "The instance sent a reply Frame could not read.")
+                PipedFailureKind.BAD_RESPONSE -> PlaybackResolution.Failed(PlaybackState.UNSUPPORTED, "The instance sent a reply FrameTube could not read.")
             }
         }
     }

@@ -77,7 +77,7 @@ fun HistoryScreen(vm: LibraryViewModel, onOpenVideo: (String) -> Unit, onImport:
 @Composable
 fun LikedScreen(vm: LibraryViewModel, onOpenVideo: (String) -> Unit, onImport: () -> Unit) {
     val items = vm.liked.collectAsLazyPagingItems()
-    PagedList(items, key = { it.id }, emptyTitle = "No liked videos", emptyHint = "Frame has not found a verified liked-videos file in the Takeout formats it understands yet.", actionLabel = "Import Takeout", onAction = onImport) { VideoRow(it, onOpenVideo) }
+    PagedList(items, key = { it.id }, emptyTitle = "No liked videos", emptyHint = "FrameTube has not found a verified liked-videos file in the Takeout formats it understands yet.", actionLabel = "Import Takeout", onAction = onImport) { VideoRow(it, onOpenVideo) }
 }
 
 @Composable

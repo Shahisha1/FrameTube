@@ -35,7 +35,7 @@ fun ImportScreen(vm: ImportViewModel, onOpenLibrary: () -> Unit) {
         Text("Import Google Takeout", style = MaterialTheme.typography.headlineMedium)
         when (val s = state) {
             ImportUiState.Idle -> {
-                Text("Choose the Takeout ZIP. Frame reads it on this device, shows what it found, and only saves after you confirm.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Choose the Takeout ZIP. FrameTube reads it on this device, shows what it found, and only saves after you confirm.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text("Importing the same archive again", style = MaterialTheme.typography.titleMedium)
