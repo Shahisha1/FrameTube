@@ -261,20 +261,28 @@ class SearchViewModel(
 data class SubscriptionFeedUiState(
     val loading: Boolean = false,
     val videos: List<VideoMetadataResult> = emptyList(),
-    val error: String? = null
+    val error: String? = null,
+    val discoveredVideos: List<VideoMetadataResult> = emptyList(),
+    val discoveryLoading: Boolean = false,
+    val discoveryError: String? = null,
+    val discoveryContext: String? = null
 )
 
 class DiscoveryViewModel(
     private val repo: LibraryRepository,
-    private val channelProvider: ChannelProvider
+    private val channelProvider: ChannelProvider,
+    private val videoProvider: VideoProvider
 ) : ViewModel() {
     private val _state = MutableStateFlow(SubscriptionFeedUiState())
     val state: StateFlow<SubscriptionFeedUiState> = _state
 
     init {
         viewModelScope.launch {
-            repo.observeSubscribedChannels().collectLatest { channels ->
-                loadFeed(channels)
+            repo.observeSubscribedChannels().collectLatest { channels -> loadFeed(channels) }
+        }
+        viewModelScope.launch {
+            repo.observeRecentHistory(5).collectLatest { history ->
+                loadDiscovery(history.firstOrNull()?.title)
             }
         }
     }
@@ -282,12 +290,36 @@ class DiscoveryViewModel(
     fun refresh() {
         viewModelScope.launch {
             loadFeed(repo.observeSubscribedChannels().first())
+            loadDiscovery(repo.observeRecentHistory(5).first().firstOrNull()?.title)
+        }
+    }
+
+    private suspend fun loadDiscovery(lastWatchedTitle: String?) {
+        val context = lastWatchedTitle?.takeIf { it.isNotBlank() && it.length > 2 }
+        val query = context?.take(90) ?: "popular videos"
+        _state.value = _state.value.copy(discoveryLoading = true, discoveryError = null)
+        try {
+            val result = withTimeoutOrNull(20_000) { videoProvider.searchVideos(query) }
+            if (result == null) {
+                _state.value = _state.value.copy(discoveryLoading = false, discoveryError = "Discovery took too long. Try refreshing.")
+            } else {
+                _state.value = _state.value.copy(
+                    discoveryLoading = false,
+                    discoveredVideos = result.items.distinctBy { it.videoId }.take(20),
+                    discoveryError = result.errorMessage?.takeIf { result.items.isEmpty() },
+                    discoveryContext = context?.let { "Because you watched $it" } ?: "Popular videos to explore"
+                )
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            _state.value = _state.value.copy(discoveryLoading = false, discoveryError = "Could not load discovery videos. Check your connection and try again.")
         }
     }
 
     private suspend fun loadFeed(channels: List<ChannelEntity>) {
         if (channels.isEmpty()) {
-            _state.value = SubscriptionFeedUiState()
+            _state.value = _state.value.copy(loading = false, videos = emptyList(), error = null)
             return
         }
         _state.value = _state.value.copy(loading = true, error = null)
@@ -310,7 +342,7 @@ class DiscoveryViewModel(
             }.awaitAll()
         }
         val videos = results.flatten().distinctBy { it.videoId }.take(60)
-        _state.value = SubscriptionFeedUiState(
+        _state.value = _state.value.copy(
             loading = false,
             videos = videos,
             error = if (videos.isEmpty()) "Could not load public videos from your saved channels. Check your connection and try again." else null

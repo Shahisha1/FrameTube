@@ -20,8 +20,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -31,7 +29,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -85,7 +82,7 @@ fun FrameApp(
     val scope = rememberCoroutineScope()
     val library: LibraryViewModel = viewModel(factory = viewModelFactory { initializer { LibraryViewModel(container.library) } })
     val search: SearchViewModel = viewModel(factory = viewModelFactory { initializer { SearchViewModel(container.library, container.providerManager.metadataProvider("newpipe")!!) } })
-    val discovery: DiscoveryViewModel = viewModel(factory = viewModelFactory { initializer { DiscoveryViewModel(container.library, container.channelProvider) } })
+    val discovery: DiscoveryViewModel = viewModel(factory = viewModelFactory { initializer { DiscoveryViewModel(container.library, container.channelProvider, container.providerManager.metadataProvider("newpipe")!!) } })
     val importVm: ImportViewModel = viewModel(factory = viewModelFactory { initializer { ImportViewModel(container.importer, container.contentResolver, container.metadataEnrichmentScheduler) } })
     val piped by container.preferences.pipedConfig.collectAsStateWithLifecycle(initialValue = PipedConfig(false, ""))
     val sponsorBlockEnabled by container.preferences.sponsorBlockEnabled.collectAsStateWithLifecycle(initialValue = false)
@@ -97,7 +94,7 @@ fun FrameApp(
 
     val items = listOf(
         NavItem(Routes.HOME, "Home", Icons.Default.Home),
-        NavItem(Routes.SUBSCRIPTIONS, "Channels", Icons.Default.Subscriptions),
+        NavItem(Routes.SUBSCRIPTIONS, "Subscriptions", Icons.Default.Subscriptions),
         NavItem(Routes.PLAYLISTS, "Playlists", Icons.Default.List),
         NavItem(Routes.HISTORY, "History", Icons.Default.History),
         NavItem(Routes.LIKED, "Liked", Icons.Default.Favorite)
@@ -105,8 +102,7 @@ fun FrameApp(
     val backStack by nav.currentBackStackEntryAsState()
     val destination = backStack?.destination
     val showNavigation = items.any { destination?.hierarchy?.any { d -> d.route == it.route } == true }
-    val wideLayout = LocalConfiguration.current.screenWidthDp >= 600
-    val openVideo = { id: String -> nav.navigate(Routes.details(id)) }
+        val openVideo = { id: String -> nav.navigate(Routes.details(id)) }
     val openImport = { nav.navigate(Routes.IMPORT) }
     val openSearch = { nav.navigate(Routes.SEARCH) }
 
@@ -116,7 +112,7 @@ fun FrameApp(
             TopAppBar(
                 title = {
                     Column {
-                        Text("FRAME", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+                        Text("FrameTube", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
                         Text("YOUR VIDEO SPACE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 },
@@ -129,7 +125,7 @@ fun FrameApp(
             )
         },
         bottomBar = {
-            if (showNavigation && !wideLayout) NavigationBar(
+            if (showNavigation) NavigationBar(
                 modifier = Modifier.height(64.dp),
                 containerColor = MaterialTheme.colorScheme.surface,
                 contentColor = MaterialTheme.colorScheme.onSurface,
@@ -146,7 +142,7 @@ fun FrameApp(
                             }
                         },
                         icon = { Icon(item.icon, contentDescription = item.label) },
-                        label = null,
+                        label = { Text(item.label) },
                         alwaysShowLabel = false
                     )
                 }
@@ -154,23 +150,6 @@ fun FrameApp(
         }
     ) { padding ->
         Row(Modifier.fillMaxSize().padding(padding)) {
-            if (showNavigation && wideLayout) NavigationRail(containerColor = MaterialTheme.colorScheme.surface) {
-                items.forEach { item ->
-                    NavigationRailItem(
-                        selected = destination?.hierarchy?.any { it.route == item.route } == true,
-                        onClick = {
-                            nav.navigate(item.route) {
-                                popUpTo(nav.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = { Icon(item.icon, contentDescription = item.label) },
-                        label = { Text(item.label) },
-                        alwaysShowLabel = true
-                    )
-                }
-            }
             NavHost(navController = nav, startDestination = Routes.HOME, modifier = Modifier.weight(1f)) {
                 composable(Routes.HOME) {
                     HomeScreen(

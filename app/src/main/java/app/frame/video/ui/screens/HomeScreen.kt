@@ -167,6 +167,49 @@ fun HomeScreen(
                 }
             }
         }
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(feed.discoveryContext ?: "Explore something new", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                    Text("A discovery lane shaped by your recent viewing", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                androidx.compose.material3.IconButton(onClick = discovery::refresh) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Refresh discovery")
+                }
+            }
+        }
+        when {
+            feed.discoveryLoading && feed.discoveredVideos.isEmpty() -> item {
+                Box(Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) {
+                    androidx.compose.material3.CircularProgressIndicator()
+                }
+            }
+            feed.discoveredVideos.isEmpty() -> item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(feed.discoveryError ?: "Search for a topic to start building your discovery feed.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    OutlinedButton(onClick = onOpenSearch) { Text("Explore topics") }
+                }
+            }
+            else -> items(
+                app.frame.video.domain.filterRecommendations(
+                    feed.discoveredVideos.filterNot { candidate -> feed.videos.any { it.videoId == candidate.videoId } },
+                    hideShorts, mutedKeywords, maxPerChannel
+                ).take(12),
+                key = { "discover-" + it.videoId }
+            ) { video ->
+                VideoRow(
+                    VideoEntity(
+                        id = video.videoId,
+                        title = video.title?.takeIf { it.isNotBlank() } ?: "Untitled video",
+                        channelId = video.channelId,
+                        thumbnailUrl = video.thumbnailUrl,
+                        durationSeconds = video.durationSeconds,
+                        source = "YOUTUBE"
+                    ),
+                    onOpenVideo
+                )
+            }
+        }
     }
 }
 
