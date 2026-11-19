@@ -59,9 +59,7 @@ import app.frame.video.ui.viewmodel.LibraryViewModel
 import coil.compose.AsyncImage
 import android.content.Intent
 
-private data class HomeFeedVideo(val video: VideoMetadataResult, val fromSubscriptions: Boolean)
-
-private val discoveryTopics = listOf("Home", "Subs", "All", "Music", "Gaming", "Mixes", "Live", "Technology", "Learning", "Recently uploaded")
+private val discoveryTopics = listOf("All", "Music", "Gaming", "Mixes", "Live", "Technology", "Learning", "Recently uploaded")
 
 fun videoMetadataLine(video: VideoMetadataResult): String? {
     val parts = buildList {
@@ -97,24 +95,12 @@ fun HomeScreen(
     val recent by vm.recent.collectAsStateWithLifecycle()
     val feed by discovery.state.collectAsStateWithLifecycle()
     var selectedTopic by remember { mutableStateOf("Home") }
-    val subscriptions = remember(feed.videos, hideShorts, mutedKeywords, maxPerChannel) {
-        app.frame.video.domain.filterRecommendations(feed.videos, hideShorts, mutedKeywords, maxPerChannel)
-    }
     val recommendations = remember(feed.discoveredVideos, feed.videos, hideShorts, mutedKeywords, maxPerChannel) {
         app.frame.video.domain.filterRecommendations(
             feed.discoveredVideos.filterNot { candidate -> feed.videos.any { it.videoId == candidate.videoId } },
             hideShorts, mutedKeywords, maxPerChannel
         ).take(24)
     }
-    val homeFeed = remember(recommendations, subscriptions) {
-        buildList {
-            repeat(maxOf(recommendations.size, subscriptions.size)) { index ->
-                recommendations.getOrNull(index)?.let { add(HomeFeedVideo(it, false)) }
-                subscriptions.getOrNull(index)?.let { add(HomeFeedVideo(it, true)) }
-            }
-        }
-    }
-
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 22.dp),
@@ -133,8 +119,7 @@ fun HomeScreen(
                         onClick = {
                             selectedTopic = topic
                             when (topic) {
-                                "Subs" -> onOpenChannels()
-                                "Home", "All" -> discovery.refresh()
+                                "All" -> discovery.refresh()
                                 else -> onExploreTopic(topic.lowercase())
                             }
                         },
@@ -222,12 +207,12 @@ fun HomeScreen(
             )
         }
         when {
-            feed.discoveryLoading && homeFeed.isEmpty() -> item {
+            feed.discoveryLoading && recommendations.isEmpty() -> item {
                 Box(Modifier.fillMaxWidth().padding(vertical = 44.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
             }
-            homeFeed.isEmpty() -> item {
+            recommendations.isEmpty() -> item {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(feed.discoveryError ?: "No videos are available right now.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -239,20 +224,16 @@ fun HomeScreen(
                     }
                 }
             }
-            else -> items(homeFeed, key = { "feed-" + it.video.videoId }) { item ->
-                val video = item.video
+            else -> items(recommendations, key = { "recommendation-" + it.videoId }) { video ->
                 HomeVideoItem(
                     videoId = video.videoId,
                     title = video.title?.takeIf { it.isNotBlank() } ?: "Untitled video",
                     thumbnail = video.thumbnailUrl,
-                    channel = video.channelName ?: if (item.fromSubscriptions) "Latest upload" else "YouTube",
+                    channel = video.channelName ?: "YouTube",
                     duration = video.durationSeconds,
                     channelAvatar = video.channelAvatarUrl,
                     metadataLine = videoMetadataLine(video),
-                    onClick = {
-                        if (item.fromSubscriptions) onOpenVideo(video.videoId)
-                        else onOpenRecommendation(video.videoId, recommendations)
-                    }
+                    onClick = { onOpenRecommendation(video.videoId, recommendations) }
                 )
             }
         }
