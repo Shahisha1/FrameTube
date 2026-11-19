@@ -504,12 +504,7 @@ class PlayerViewModel(
     fun load() {
         _state.value = PlayerUiState.Loading
         viewModelScope.launch {
-            val provider = providers.playbackProvider(videoId)
-            if (provider == null) {
-                _state.value = PlayerUiState.Failed(PlaybackState.UNSUPPORTED, "No playback source is available for this video.")
-                return@launch
-            }
-            when (val result = provider.resolve(videoId)) {
+            when (val result = providers.resolvePlayback(videoId)) {
                 is PlaybackResolution.Ready -> {
                     if (positionMs == 0L) positionMs = PlaybackProgress.resumePositionMs(savedPositionSeconds())
                     recordPlayOnce()
