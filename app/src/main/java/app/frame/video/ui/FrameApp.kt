@@ -30,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -144,10 +145,10 @@ fun FrameApp(
             )
         },
         bottomBar = {
-            if (showNavigation && !isShortsDestination) NavigationBar(
+            if (showNavigation) NavigationBar(
                 modifier = Modifier.height(64.dp),
-                containerColor = MaterialTheme.colorScheme.background,
-                contentColor = MaterialTheme.colorScheme.onSurface,
+                containerColor = if (isShortsDestination) Color.Black else MaterialTheme.colorScheme.background,
+                contentColor = if (isShortsDestination) Color.White else MaterialTheme.colorScheme.onSurface,
                 tonalElevation = 0.dp
             ) {
                 items.forEach { item ->
@@ -164,11 +165,11 @@ fun FrameApp(
                         label = { Text(item.label, maxLines = 1) },
                         alwaysShowLabel = true,
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.onSurface,
-                            selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                            unselectedIconColor = MaterialTheme.colorScheme.onSurface,
-                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            indicatorColor = MaterialTheme.colorScheme.background
+                            selectedIconColor = if (isShortsDestination) Color.White else MaterialTheme.colorScheme.onSurface,
+                            selectedTextColor = if (isShortsDestination) Color.White else MaterialTheme.colorScheme.onSurface,
+                            unselectedIconColor = if (isShortsDestination) Color.White.copy(alpha = 0.72f) else MaterialTheme.colorScheme.onSurface,
+                            unselectedTextColor = if (isShortsDestination) Color.White.copy(alpha = 0.72f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            indicatorColor = if (isShortsDestination) Color.Black else MaterialTheme.colorScheme.background
                         )
                     )
                 }
