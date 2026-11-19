@@ -264,18 +264,10 @@ fun PlayerScreen(
                     } else {
                         Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(48.dp))
                     }
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(videoTitle, style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-                        Text(metadata?.channelName.orEmpty(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        val details = listOfNotNull(
-                            metadata?.viewCount?.takeIf { it >= 0L }?.let { "${compactVideoCount(it)} views" },
-                            metadata?.textualUploadDate?.takeIf { it.isNotBlank() }
-                        ).joinToString(" · ")
-                        if (details.isNotBlank()) Text(details, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(metadata?.channelName.orEmpty(), style = MaterialTheme.typography.titleSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
                     }
                 }
-            } else {
-                Text(videoTitle, style = MaterialTheme.typography.titleLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
             }
 
             Row(
