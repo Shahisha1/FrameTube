@@ -1,0 +1,16 @@
+# Android / Gradle
+.gradle/
+**/build/
+local.properties
+
+# Local signing material (never commit release keys)
+*.jks
+*.keystore
+*.p12
+
+# IDE files
+.idea/
+*.iml
+
+# Local APK outputs
+*.apk
