@@ -246,6 +246,7 @@ fun FrameApp(
                             container.playbackSession.setQueue(entries, PlaybackQueueMode.AUTOPLAY, startIndex)
                             openVideo(id)
                         },
+                        onOpenShorts = { nav.navigate(Routes.SHORTS) },
                         hideShorts = hideShorts,
                         mutedKeywords = mutedKeywords,
                         maxPerChannel = maxPerChannel

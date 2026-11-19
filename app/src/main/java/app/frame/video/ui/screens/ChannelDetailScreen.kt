@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -66,7 +67,7 @@ fun ChannelDetailScreen(
                             model = profile.bannerUrl,
                             contentDescription = "Channel banner",
                             contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxWidth().height(132.dp).clip(MaterialTheme.shapes.large)
+                            modifier = Modifier.fillMaxWidth().height(116.dp).clip(RoundedCornerShape(12.dp))
                         )
                     }
                     Row(
@@ -96,7 +97,7 @@ fun ChannelDetailScreen(
                     if (!profile.description.isNullOrBlank()) {
                         Text(profile.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Text("VIDEOS", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    Text("Videos", style = MaterialTheme.typography.titleLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
                 if (state.videos.isEmpty()) {

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -34,6 +35,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -70,6 +72,7 @@ fun HomeScreen(
     onExploreTopic: (String) -> Unit,
     onOpenVideo: (String) -> Unit,
     onOpenRecommendation: (String, List<VideoMetadataResult>) -> Unit = { id, _ -> onOpenVideo(id) },
+    onOpenShorts: () -> Unit = {},
     hideShorts: Boolean = false,
     mutedKeywords: String = "",
     maxPerChannel: Int = 3
@@ -125,6 +128,54 @@ fun HomeScreen(
                             selectedLabelColor = MaterialTheme.colorScheme.background
                         )
                     )
+                }
+            }
+        }
+
+        if (!hideShorts && feed.shortsVideos.isNotEmpty()) {
+            item {
+                Column(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 8.dp)) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, bottom = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Shorts", modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        TextButton(onClick = onOpenShorts) { Text("See all") }
+                    }
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(feed.shortsVideos.take(10), key = { "short-" + it.videoId }) { short ->
+                            Column(
+                                Modifier.width(148.dp).clickable { onOpenShorts() },
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Box(
+                                    Modifier.fillMaxWidth().aspectRatio(0.58f)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                ) {
+                                    if (!short.thumbnailUrl.isNullOrBlank()) {
+                                        AsyncImage(
+                                            model = short.thumbnailUrl,
+                                            contentDescription = short.title,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
+                                }
+                                Text(
+                                    short.title?.takeIf { it.isNotBlank() } ?: "Short video",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.padding(horizontal = 2.dp)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

@@ -1,6 +1,7 @@
 package app.frame.video.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,6 +43,7 @@ import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -233,41 +235,56 @@ fun PlayerScreen(
 
             Row(
                 Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconToggleButton(
-                    checked = liked,
-                    onCheckedChange = { requested ->
-                        scope.launch {
-                            try {
-                                library.ensureVideo(videoId, videoTitle, metadata?.thumbnailUrl)
-                                library.setLiked(videoId, requested)
-                            } catch (cancelled: CancellationException) {
-                                throw cancelled
-                            } catch (_: Exception) { }
-                        }
-                    }
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
-                    Icon(
-                        if (liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = if (liked) "Unlike video" else "Like video",
-                        tint = if (liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                Text(if (liked) "Liked" else "Like", style = MaterialTheme.typography.labelMedium)
-                IconButton(onClick = {
-                    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(android.content.Intent.EXTRA_TEXT, "https://www.youtube.com/watch?v=$videoId")
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconToggleButton(
+                            checked = liked,
+                            onCheckedChange = { requested ->
+                                scope.launch {
+                                    try {
+                                        library.ensureVideo(videoId, videoTitle, metadata?.thumbnailUrl)
+                                        library.setLiked(videoId, requested)
+                                    } catch (cancelled: CancellationException) {
+                                        throw cancelled
+                                    } catch (_: Exception) { }
+                                }
+                            }
+                        ) {
+                            Icon(
+                                if (liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = if (liked) "Unlike video" else "Like video",
+                                tint = if (liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        androidx.compose.material3.HorizontalDivider(
+                            Modifier.size(width = 1.dp, height = 22.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+                        IconButton(onClick = {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(android.content.Intent.EXTRA_TEXT, "https://www.youtube.com/watch?v=$videoId")
+                            }
+                            context.startActivity(android.content.Intent.createChooser(intent, "Share video"))
+                        }) { Icon(Icons.Default.Share, contentDescription = "Share video") }
                     }
-                    context.startActivity(android.content.Intent.createChooser(intent, "Share video"))
-                }) { Icon(Icons.Default.Share, contentDescription = "Share video") }
-                Text("Share", style = MaterialTheme.typography.labelMedium)
-                androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
-                TextButton(onClick = onOpenSettings) {
-                    Icon(Icons.Default.Settings, contentDescription = null)
-                    Text("Settings", modifier = Modifier.padding(start = 4.dp))
+                }
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    TextButton(onClick = onOpenSettings) {
+                        Icon(Icons.Default.Settings, contentDescription = null)
+                        Text("More", modifier = Modifier.padding(start = 4.dp))
+                    }
                 }
             }
 
