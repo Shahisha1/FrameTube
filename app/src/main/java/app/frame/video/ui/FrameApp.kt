@@ -110,6 +110,7 @@ fun FrameApp(
     val showNavigation = items.any { destination?.hierarchy?.any { d -> d.route == it.route } == true }
     val isShortsDestination = destination?.hierarchy?.any { it.route == Routes.SHORTS } == true
     val isSearchDestination = destination?.hierarchy?.any { it.route == Routes.SEARCH } == true
+    val isWatchDestination = destination?.hierarchy?.any { it.route == Routes.PLAYER || it.route == Routes.DETAILS || it.route == Routes.LOCAL_PLAYER } == true
     val openVideo = { id: String -> nav.navigate(Routes.player(id)) }
     val openImport = { nav.navigate(Routes.IMPORT) }
     val openSearch = { nav.navigate(Routes.SEARCH) }
@@ -117,7 +118,7 @@ fun FrameApp(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            if (!isShortsDestination && !isSearchDestination) TopAppBar(
+            if (!isShortsDestination && !isSearchDestination && !isWatchDestination) TopAppBar(
                 title = {
                     Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                         androidx.compose.foundation.layout.Box(
