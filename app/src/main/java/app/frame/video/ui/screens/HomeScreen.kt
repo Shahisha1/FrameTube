@@ -55,6 +55,8 @@ import app.frame.video.ui.viewmodel.LibraryViewModel
 import coil.compose.AsyncImage
 import android.content.Intent
 
+private data class HomeFeedVideo(val video: VideoMetadataResult, val fromSubscriptions: Boolean)
+
 private val discoveryTopics = listOf("All", "Music", "Gaming", "Mixes", "Live", "Technology", "Learning", "Recently uploaded")
 
 @Composable
@@ -83,6 +85,14 @@ fun HomeScreen(
             feed.discoveredVideos.filterNot { candidate -> feed.videos.any { it.videoId == candidate.videoId } },
             hideShorts, mutedKeywords, maxPerChannel
         ).take(24)
+    }
+    val homeFeed = remember(recommendations, subscriptions) {
+        buildList {
+            repeat(maxOf(recommendations.size, subscriptions.size)) { index ->
+                recommendations.getOrNull(index)?.let { add(HomeFeedVideo(it, false)) }
+                subscriptions.getOrNull(index)?.let { add(HomeFeedVideo(it, true)) }
+            }
+        }
     }
 
     LazyColumn(
@@ -135,55 +145,35 @@ fun HomeScreen(
             )
         }
         when {
-            feed.discoveryLoading && recommendations.isEmpty() -> item {
+            feed.discoveryLoading && homeFeed.isEmpty() -> item {
                 Box(Modifier.fillMaxWidth().padding(vertical = 44.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
             }
-            recommendations.isEmpty() -> item {
+            homeFeed.isEmpty() -> item {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(feed.discoveryError ?: "No recommendations are available right now.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(feed.discoveryError ?: "No videos are available right now.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = discovery::refresh) { Text("Try again") }
                         OutlinedButton(onClick = onOpenSearch) { Text("Search videos") }
                     }
+                    if (subscriptions.isEmpty()) {
+                        OutlinedButton(onClick = onOpenChannels) { Text("Browse subscriptions") }
+                    }
                 }
             }
-            else -> items(recommendations, key = { "discover-" + it.videoId }) { video ->
+            else -> items(homeFeed, key = { "feed-" + it.video.videoId }) { item ->
+                val video = item.video
                 HomeVideoItem(
                     videoId = video.videoId,
                     title = video.title?.takeIf { it.isNotBlank() } ?: "Untitled video",
                     thumbnail = video.thumbnailUrl,
                     channel = "YouTube",
                     duration = video.durationSeconds,
-                    onClick = { onOpenRecommendation(video.videoId, recommendations) }
-                )
-            }
-        }
-
-        item {
-            SectionHeading("From your subscriptions", onRefresh = discovery::refresh)
-        }
-        when {
-            feed.loading && subscriptions.isEmpty() -> item {
-                Box(Modifier.fillMaxWidth().padding(vertical = 36.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            }
-            subscriptions.isEmpty() -> item {
-                Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Your followed channels will appear here.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    OutlinedButton(onClick = onOpenChannels) { Text("Browse subscriptions") }
-                }
-            }
-            else -> items(subscriptions, key = { "sub-" + it.videoId }) { video ->
-                HomeVideoItem(
-                    videoId = video.videoId,
-                    title = video.title?.takeIf { it.isNotBlank() } ?: "Untitled video",
-                    thumbnail = video.thumbnailUrl,
-                    channel = "YouTube",
-                    duration = video.durationSeconds,
-                    onClick = { onOpenVideo(video.videoId) }
+                    onClick = {
+                        if (item.fromSubscriptions) onOpenVideo(video.videoId)
+                        else onOpenRecommendation(video.videoId, recommendations)
+                    }
                 )
             }
         }
