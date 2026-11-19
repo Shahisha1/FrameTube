@@ -15,6 +15,7 @@ interface LibraryRepository {
     fun pagedHistory(): Flow<PagingData<VideoEntity>>
     fun pagedLiked(): Flow<PagingData<VideoEntity>>
     fun pagedChannels(): Flow<PagingData<ChannelEntity>>
+    fun observeSubscribedChannels(): Flow<List<ChannelEntity>>
     fun pagedPlaylists(): Flow<PagingData<PlaylistEntity>>
     fun pagedPlaylistVideos(playlistId: String): Flow<PagingData<VideoEntity>>
     fun searchVideos(query: String): Flow<PagingData<VideoEntity>>

@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -31,16 +32,20 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.frame.video.ui.components.VideoRow
 import app.frame.video.ui.viewmodel.LibraryViewModel
+import app.frame.video.ui.viewmodel.DiscoveryViewModel
 
 @Composable
 fun HomeScreen(
     vm: LibraryViewModel,
+    discovery: DiscoveryViewModel,
     onOpenImport: () -> Unit,
+    onOpenChannels: () -> Unit,
     onOpenSearch: () -> Unit,
     onOpenVideo: (String) -> Unit
 ) {
     val counts by vm.counts.collectAsStateWithLifecycle()
     val recent by vm.recent.collectAsStateWithLifecycle()
+    val feed by discovery.state.collectAsStateWithLifecycle()
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -132,6 +137,48 @@ fun HomeScreen(
                         LibraryStat(counts.playlists.toString(), "PLAYLISTS")
                         LibraryStat(counts.watched.toString(), "WATCHED")
                     }
+                }
+            }
+            item {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text("From your channels", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                        Text("Latest public uploads from your subscriptions", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    androidx.compose.material3.IconButton(onClick = discovery::refresh) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh channel feed")
+                    }
+                }
+            }
+            when {
+                feed.loading && feed.videos.isEmpty() -> item {
+                    androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) {
+                        androidx.compose.material3.CircularProgressIndicator()
+                    }
+                }
+                feed.error != null && feed.videos.isEmpty() -> item {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(feed.error.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        OutlinedButton(onClick = discovery::refresh) { Text("Try again") }
+                    }
+                }
+                feed.videos.isEmpty() -> item {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("No channel feed yet. Import subscriptions or subscribe to channels to see their latest public uploads here.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        OutlinedButton(onClick = onOpenChannels) { Text("Open channels") }
+                    }
+                }
+                else -> items(feed.videos, key = { "feed-" + it.videoId }) { video ->
+                    VideoRow(
+                        app.frame.video.data.local.VideoEntity(
+                            id = video.videoId,
+                            title = video.title ?: "YouTube video",
+                            channelId = video.channelId,
+                            thumbnailUrl = video.thumbnailUrl,
+                            source = "YOUTUBE"
+                        ),
+                        onOpenVideo
+                    )
                 }
             }
             item {

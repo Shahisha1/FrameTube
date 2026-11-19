@@ -36,6 +36,9 @@ interface LibraryDao {
     @Query("SELECT * FROM channels ORDER BY title COLLATE NOCASE")
     fun observeChannels(): Flow<List<ChannelEntity>>
 
+    @Query("SELECT c.* FROM channels c INNER JOIN subscriptions s ON s.channelId = c.id ORDER BY COALESCE(s.subscribedAt, 0) DESC, c.title COLLATE NOCASE")
+    fun observeSubscribedChannels(): Flow<List<ChannelEntity>>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertSubscriptions(items: List<SubscriptionEntity>)
 

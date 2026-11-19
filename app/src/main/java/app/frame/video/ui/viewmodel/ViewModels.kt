@@ -43,6 +43,12 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 class LibraryViewModel(private val repo: LibraryRepository) : ViewModel() {
     val history = repo.pagedHistory().cachedIn(viewModelScope)
@@ -193,6 +199,66 @@ class SearchViewModel(
         .flatMapLatest { if (it.isEmpty()) flowOf(PagingData.empty<VideoEntity>()) else repo.searchVideos(it) }
         .cachedIn(viewModelScope)
 }
+data class SubscriptionFeedUiState(
+    val loading: Boolean = false,
+    val videos: List<VideoMetadataResult> = emptyList(),
+    val error: String? = null
+)
+
+class DiscoveryViewModel(
+    private val repo: LibraryRepository,
+    private val channelProvider: ChannelProvider
+) : ViewModel() {
+    private val _state = MutableStateFlow(SubscriptionFeedUiState())
+    val state: StateFlow<SubscriptionFeedUiState> = _state
+
+    init {
+        viewModelScope.launch {
+            repo.observeSubscribedChannels().collectLatest { channels ->
+                loadFeed(channels)
+            }
+        }
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            loadFeed(repo.observeSubscribedChannels().first())
+        }
+    }
+
+    private suspend fun loadFeed(channels: List<ChannelEntity>) {
+        if (channels.isEmpty()) {
+            _state.value = SubscriptionFeedUiState()
+            return
+        }
+        _state.value = _state.value.copy(loading = true, error = null)
+        val gate = Semaphore(3)
+        val results = coroutineScope {
+            channels.take(12).map { channel ->
+                async {
+                    gate.withPermit {
+                        val url = channel.channelUrl?.takeIf { it.isNotBlank() }
+                            ?: "https://www.youtube.com/channel/" + channel.id
+                        try {
+                            withTimeoutOrNull(20_000) { channelProvider.getChannelPage(url).videos }.orEmpty()
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Exception) {
+                            emptyList()
+                        }
+                    }
+                }
+            }.awaitAll()
+        }
+        val videos = results.flatten().distinctBy { it.videoId }.take(60)
+        _state.value = SubscriptionFeedUiState(
+            loading = false,
+            videos = videos,
+            error = if (videos.isEmpty()) "Could not load public videos from your saved channels. Check your connection and try again." else null
+        )
+    }
+}
+
 sealed interface ImportUiState {
     data object Idle : ImportUiState
     data class Reading(val sourceName: String) : ImportUiState

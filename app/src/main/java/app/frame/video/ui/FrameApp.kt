@@ -59,6 +59,7 @@ import app.frame.video.ui.viewmodel.ChannelDetailViewModel
 import app.frame.video.ui.viewmodel.LibraryViewModel
 import app.frame.video.ui.viewmodel.PlayerViewModel
 import app.frame.video.ui.viewmodel.SearchViewModel
+import app.frame.video.ui.viewmodel.DiscoveryViewModel
 import kotlinx.coroutines.launch
 
 private data class NavItem(val route: String, val label: String, val icon: ImageVector)
@@ -76,6 +77,7 @@ fun FrameApp(
     val scope = rememberCoroutineScope()
     val library: LibraryViewModel = viewModel(factory = viewModelFactory { initializer { LibraryViewModel(container.library) } })
     val search: SearchViewModel = viewModel(factory = viewModelFactory { initializer { SearchViewModel(container.library, container.providerManager.metadataProvider("newpipe")!!) } })
+    val discovery: DiscoveryViewModel = viewModel(factory = viewModelFactory { initializer { DiscoveryViewModel(container.library, container.channelProvider) } })
     val importVm: ImportViewModel = viewModel(factory = viewModelFactory { initializer { ImportViewModel(container.importer, container.contentResolver, container.metadataEnrichmentScheduler) } })
     val piped by container.preferences.pipedConfig.collectAsStateWithLifecycle(initialValue = PipedConfig(false, ""))
 
@@ -139,7 +141,7 @@ fun FrameApp(
         }
     ) { padding ->
         NavHost(navController = nav, startDestination = Routes.HOME, modifier = Modifier.padding(padding)) {
-            composable(Routes.HOME) { HomeScreen(library, onOpenImport = { openImport() }, onOpenSearch = { openSearch() }, onOpenVideo = openVideo) }
+            composable(Routes.HOME) { HomeScreen(library, discovery, onOpenImport = { openImport() }, onOpenChannels = { nav.navigate(Routes.SUBSCRIPTIONS) }, onOpenSearch = { openSearch() }, onOpenVideo = openVideo) }
             composable(Routes.SUBSCRIPTIONS) { ChannelsScreen(library, onImport = { openImport() }, onOpenChannel = { nav.navigate(Routes.channel(it)) }) }
             composable(Routes.PLAYLISTS) { PlaylistsScreen(library, onOpenPlaylist = { nav.navigate(Routes.playlist(it)) }, onImport = { openImport() }) }
             composable(Routes.CHANNEL) { entry ->

@@ -21,6 +21,7 @@ class RoomLibraryRepository(private val dao: LibraryDao) : LibraryRepository {
     override fun pagedHistory() = pager { dao.pagedHistory() }
     override fun pagedLiked() = pager { dao.pagedLiked() }
     override fun pagedChannels() = pager { dao.pagedChannels() }
+    override fun observeSubscribedChannels() = dao.observeSubscribedChannels()
     override fun pagedPlaylists() = pager { dao.pagedPlaylists() }
     override fun pagedPlaylistVideos(playlistId: String) = pager { dao.pagedPlaylistVideos(playlistId) }
     override fun searchVideos(query: String) = pager { dao.pagedSearch(escapeLike(query), query) }
