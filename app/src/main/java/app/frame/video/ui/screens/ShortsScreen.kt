@@ -62,6 +62,7 @@ import app.frame.video.ui.viewmodel.PlayerViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * A single-active-player vertical feed. Inactive pager pages render only a
@@ -80,6 +81,15 @@ fun ShortsScreen(
     val shorts = feed.shortsVideos
     val pagerState = rememberPagerState(pageCount = { shorts.size })
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(pagerState.currentPage, shorts) {
+        val nextVideo = shorts.getOrNull(pagerState.currentPage + 1) ?: return@LaunchedEffect
+        try {
+            withTimeoutOrNull(12_000) { providers.prefetchPlayback(nextVideo.videoId) }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        }
+    }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         when {
