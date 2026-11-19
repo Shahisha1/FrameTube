@@ -47,14 +47,14 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.PlaybackParameters
-import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import app.frame.video.core.datastore.FramePreferences
 import app.frame.video.core.provider.PlaybackResolution
+import app.frame.video.core.player.PlaybackSession
+import app.frame.video.domain.playback.PlaybackQueueEntry
 import app.frame.video.data.sponsorblock.SponsorBlockClient
 import app.frame.video.data.sponsorblock.SponsorSegment
 import app.frame.video.ui.components.openOnYouTube
@@ -67,6 +67,7 @@ import kotlinx.coroutines.delay
 fun PlayerScreen(
     videoId: String,
     vm: PlayerViewModel,
+    session: PlaybackSession,
     preferences: FramePreferences,
     onBack: () -> Unit,
     onOpenSettings: () -> Unit
@@ -91,7 +92,7 @@ fun PlayerScreen(
                 }
             }
             is PlayerUiState.Ready -> {
-                ExoSurface(videoId, s.source, vm, preferences)
+                ExoSurface(videoId, s.source, vm, session, preferences)
                 Text(s.source.sourceLabel, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             is PlayerUiState.Failed -> Card(
@@ -120,17 +121,11 @@ fun PlayerScreen(
 }
 
 @Composable
-private fun ExoSurface(videoId: String, source: PlaybackResolution.Ready, vm: PlayerViewModel, preferences: FramePreferences) {
-    val context = LocalContext.current
+private fun ExoSurface(videoId: String, source: PlaybackResolution.Ready, vm: PlayerViewModel, session: PlaybackSession, preferences: FramePreferences) {
     val lifecycleOwner = LocalLifecycleOwner.current
-    val player = remember(source.uri) {
-        ExoPlayer.Builder(context).build().apply {
-            val item = MediaItem.Builder().setUri(source.uri).apply { source.mimeType?.let { setMimeType(it) } }.build()
-            setMediaItem(item)
-            seekTo(vm.positionMs)
-            prepare()
-            playWhenReady = true
-        }
+    val player = session.player
+    LaunchedEffect(videoId, source.uri) {
+        session.playSingle(PlaybackQueueEntry(videoId, "Video"), source, vm.positionMs)
     }
     val sponsorBlockEnabled by preferences.sponsorBlockEnabled.collectAsStateWithLifecycle(initialValue = false)
     val sponsorBlockCategories by preferences.sponsorBlockCategories.collectAsStateWithLifecycle(initialValue = FramePreferences.DEFAULT_SPONSORBLOCK_CATEGORIES)
@@ -159,7 +154,7 @@ private fun ExoSurface(videoId: String, source: PlaybackResolution.Ready, vm: Pl
     }
     LaunchedEffect(player, sponsorBlockEnabled) {
         while (true) {
-            if (sponsorBlockEnabled && player.isPlaying) {
+            if (sponsorBlockEnabled && player.isPlaying && player.currentMediaItem?.mediaId == videoId) {
                 val current = player.currentPosition
                 val segment = sponsorSegments.firstOrNull {
                     current >= it.startMs && current < it.endMs && it.startMs !in skippedStarts
@@ -190,36 +185,39 @@ private fun ExoSurface(videoId: String, source: PlaybackResolution.Ready, vm: Pl
     LaunchedEffect(player) {
         while (true) {
             delay(10_000)
-            if (player.isPlaying) vm.savePosition(player.currentPosition, player.duration)
+            if (player.isPlaying && player.currentMediaItem?.mediaId == videoId) vm.savePosition(player.currentPosition, player.duration)
         }
     }
     DisposableEffect(player) {
         val listener = object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
-                vm.positionMs = player.currentPosition
-                vm.savePosition(player.currentPosition, player.duration)
-                vm.failPlayback("Playback stopped (${error.errorCodeName}). Check your connection and try again.")
+                if (player.currentMediaItem?.mediaId == videoId) {
+                    vm.positionMs = player.currentPosition
+                    vm.savePosition(player.currentPosition, player.duration)
+                    vm.failPlayback("Playback stopped (${error.errorCodeName}). Check your connection and try again.")
+                }
             }
             override fun onIsPlayingChanged(playing: Boolean) { isPlaying = playing }
             override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_ENDED) vm.savePosition(player.currentPosition, player.duration, ended = true)
+                if (playbackState == Player.STATE_ENDED && player.currentMediaItem?.mediaId == videoId) vm.savePosition(player.currentPosition, player.duration, ended = true)
             }
         }
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) {
+            if (event == Lifecycle.Event.ON_STOP && player.currentMediaItem?.mediaId == videoId) {
                 vm.positionMs = player.currentPosition
                 vm.savePosition(player.currentPosition, player.duration)
-                player.pause()
+                session.pause()
             }
         }
         player.addListener(listener)
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
-            vm.positionMs = player.currentPosition
-            vm.savePosition(player.currentPosition, player.duration)
+            if (player.currentMediaItem?.mediaId == videoId) {
+                vm.positionMs = player.currentPosition
+                vm.savePosition(player.currentPosition, player.duration)
+            }
             lifecycleOwner.lifecycle.removeObserver(observer)
             player.removeListener(listener)
-            player.release()
         }
     }
 

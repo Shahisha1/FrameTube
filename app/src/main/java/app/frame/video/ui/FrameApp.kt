@@ -177,6 +177,7 @@ fun FrameApp(
                         discovery = discovery,
                         providers = container.providerManager,
                         library = container.library,
+                        session = container.playbackSession,
                         onOpenVideo = openVideo,
                         onClose = {
                             nav.navigate(Routes.HOME) {
@@ -245,7 +246,7 @@ fun FrameApp(
                 composable(Routes.PLAYER) { entry ->
                     val id = entry.arguments?.getString("videoId").orEmpty()
                     val vm: PlayerViewModel = viewModel(key = "player-$id", factory = viewModelFactory { initializer { PlayerViewModel(id, container.providerManager, container.library) } })
-                    PlayerScreen(id, vm, container.preferences, onBack = { nav.popBackStack() }, onOpenSettings = { nav.navigate(Routes.SETTINGS) })
+                    PlayerScreen(id, vm, container.playbackSession, container.preferences, onBack = { nav.popBackStack() }, onOpenSettings = { nav.navigate(Routes.SETTINGS) })
                 }
                 composable(Routes.LOCAL_PLAYER) { entry ->
                     val id = entry.arguments?.getString("downloadId")?.toLongOrNull()

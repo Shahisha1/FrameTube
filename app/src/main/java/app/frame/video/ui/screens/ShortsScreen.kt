@@ -45,13 +45,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import androidx.media3.common.MediaItem
-import androidx.media3.common.PlaybackException
-import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import app.frame.video.core.provider.PlaybackResolution
+import app.frame.video.core.player.PlaybackSession
+import app.frame.video.domain.playback.PlaybackQueueEntry
+import app.frame.video.domain.playback.PlaybackQueueMode
 import app.frame.video.core.provider.ProviderManager
 import app.frame.video.domain.LibraryRepository
 import app.frame.video.domain.provider.VideoMetadataResult
@@ -65,15 +64,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * A single-active-player vertical feed. Inactive pager pages render only a
- * thumbnail; the Media3 player is created for the selected page and released
- * when that page leaves composition.
+ * A vertical Shorts feed backed by the app-wide playback session. Inactive
+ * pages render thumbnails; the selected page attaches the shared Media3 player.
  */
 @Composable
 fun ShortsScreen(
     discovery: DiscoveryViewModel,
     providers: ProviderManager,
     library: LibraryRepository,
+    session: PlaybackSession,
     onOpenVideo: (String) -> Unit,
     onClose: () -> Unit
 ) {
@@ -81,6 +80,30 @@ fun ShortsScreen(
     val shorts = feed.shortsVideos
     val pagerState = rememberPagerState(pageCount = { shorts.size })
     val scope = rememberCoroutineScope()
+    val sessionState by session.state.collectAsStateWithLifecycle()
+
+    LaunchedEffect(shorts) {
+        if (shorts.isNotEmpty()) {
+            val activeIndex = shorts.indexOfFirst { it.videoId == sessionState.currentVideoId }
+                .takeIf { it >= 0 } ?: pagerState.currentPage.coerceIn(0, shorts.lastIndex)
+            session.setQueue(
+                entries = shorts.map { PlaybackQueueEntry(it.videoId, it.title.orEmpty(), it.thumbnailUrl) },
+                mode = PlaybackQueueMode.SHORTS,
+                startIndex = activeIndex
+            )
+        }
+    }
+
+    LaunchedEffect(pagerState.currentPage) {
+        session.pause()
+    }
+
+    LaunchedEffect(sessionState.currentVideoId, shorts) {
+        val activeIndex = shorts.indexOfFirst { it.videoId == sessionState.currentVideoId }
+        if (activeIndex >= 0 && activeIndex != pagerState.currentPage) {
+            pagerState.animateScrollToPage(activeIndex)
+        }
+    }
 
     LaunchedEffect(pagerState.currentPage, shorts) {
         val nextVideo = shorts.getOrNull(pagerState.currentPage + 1) ?: return@LaunchedEffect
@@ -134,11 +157,7 @@ fun ShortsScreen(
                         total = shorts.size,
                         vm = playerVm,
                         library = library,
-                        onEnded = {
-                            if (page < shorts.lastIndex) {
-                                scope.launch { pagerState.animateScrollToPage(page + 1) }
-                            }
-                        },
+                        session = session,
                         onOpenVideo = onOpenVideo
                     )
                 } else {
@@ -148,7 +167,7 @@ fun ShortsScreen(
         }
 
         IconButton(
-            onClick = onClose,
+            onClick = { session.pause(); onClose() },
             modifier = Modifier.align(Alignment.TopStart).padding(start = 10.dp, top = 10.dp)
                 .background(Color.Black.copy(alpha = 0.35f), MaterialTheme.shapes.small)
         ) {
@@ -179,12 +198,13 @@ private fun ShortsActivePage(
     total: Int,
     vm: PlayerViewModel,
     library: LibraryRepository,
-    onEnded: () -> Unit,
+    session: PlaybackSession,
     onOpenVideo: (String) -> Unit
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val liked by remember(video.videoId) { library.observeIsLiked(video.videoId) }
         .collectAsStateWithLifecycle(initialValue = false)
+    val sessionState by session.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -198,7 +218,7 @@ private fun ShortsActivePage(
                 videoId = video.videoId,
                 source = playback.source,
                 vm = vm,
-                onEnded = onEnded
+                session = session
             )
             is PlayerUiState.Failed -> Column(
                 Modifier.align(Alignment.Center).padding(28.dp),
@@ -209,6 +229,19 @@ private fun ShortsActivePage(
                 Text(playback.message, color = Color.White.copy(alpha = 0.72f))
                 IconButton(onClick = vm::load) {
                     Icon(Icons.Default.Refresh, contentDescription = "Retry playback", tint = Color.White)
+                }
+            }
+        }
+
+        if (sessionState.currentVideoId == video.videoId && sessionState.error != null) {
+            Column(
+                Modifier.align(Alignment.Center).padding(28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(sessionState.error.orEmpty(), color = Color.White, style = MaterialTheme.typography.bodyMedium)
+                IconButton(onClick = session::retryCurrent) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Retry Short", tint = Color.White)
                 }
             }
         }
@@ -270,68 +303,51 @@ private fun ShortsExoSurface(
     videoId: String,
     source: PlaybackResolution.Ready,
     vm: PlayerViewModel,
-    onEnded: () -> Unit
+    session: PlaybackSession
 ) {
-    val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val player = remember(source.uri) {
-        ExoPlayer.Builder(context).build().apply {
-            val mediaItem = MediaItem.Builder().setUri(source.uri).apply {
-                source.mimeType?.let { setMimeType(it) }
-            }.build()
-            setMediaItem(mediaItem)
-            seekTo(vm.positionMs)
-            prepare()
-            playWhenReady = true
-        }
-    }
-    var wasPlayingBeforeStop by remember(player) { mutableStateOf(false) }
+    val player = session.player
 
-    LaunchedEffect(player) {
+    LaunchedEffect(videoId, source.uri) {
+        session.playQueued(PlaybackQueueEntry(videoId, ""), source, vm.positionMs)
+    }
+
+    LaunchedEffect(player, videoId) {
         while (true) {
             delay(5_000)
-            vm.savePosition(player.currentPosition, player.duration)
+            if (player.currentMediaItem?.mediaId == videoId) {
+                vm.positionMs = player.currentPosition
+                vm.savePosition(player.currentPosition, player.duration)
+            }
         }
     }
 
-    DisposableEffect(player, lifecycleOwner) {
-        val listener = object : Player.Listener {
-            override fun onPlayerError(error: PlaybackException) {
-                vm.positionMs = player.currentPosition
-                vm.savePosition(player.currentPosition, player.duration)
-                vm.failPlayback("Playback stopped (${error.errorCodeName}). Check your connection and try again.")
-            }
-
-            override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_ENDED) {
-                    vm.savePosition(player.currentPosition, player.duration, ended = true)
-                    onEnded()
-                }
-            }
-        }
+    var wasPlayingBeforeStop by remember(videoId) { mutableStateOf(false) }
+    DisposableEffect(player, lifecycleOwner, videoId) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_STOP -> {
+                Lifecycle.Event.ON_STOP -> if (player.currentMediaItem?.mediaId == videoId) {
                     wasPlayingBeforeStop = player.isPlaying
                     vm.positionMs = player.currentPosition
                     vm.savePosition(player.currentPosition, player.duration)
-                    player.pause()
+                    session.pause()
                 }
-                Lifecycle.Event.ON_START -> if (wasPlayingBeforeStop) {
-                    player.play()
+                Lifecycle.Event.ON_START -> if (
+                    wasPlayingBeforeStop && player.currentMediaItem?.mediaId == videoId
+                ) {
+                    session.resume()
                     wasPlayingBeforeStop = false
                 }
                 else -> Unit
             }
         }
-        player.addListener(listener)
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
-            vm.positionMs = player.currentPosition
-            vm.savePosition(player.currentPosition, player.duration)
+            if (player.currentMediaItem?.mediaId == videoId) {
+                vm.positionMs = player.currentPosition
+                vm.savePosition(player.currentPosition, player.duration)
+            }
             lifecycleOwner.lifecycle.removeObserver(observer)
-            player.removeListener(listener)
-            player.release()
         }
     }
 
@@ -345,8 +361,6 @@ private fun ShortsExoSurface(
             }
         },
         update = { it.player = player },
-        modifier = Modifier.fillMaxSize().clickable {
-            if (player.isPlaying) player.pause() else player.play()
-        }
+        modifier = Modifier.fillMaxSize().clickable { session.togglePlayback() }
     )
 }
