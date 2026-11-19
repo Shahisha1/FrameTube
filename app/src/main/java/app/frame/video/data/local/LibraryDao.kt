@@ -51,6 +51,21 @@ interface LibraryDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertSearchHistory(items: List<SearchHistoryEntity>)
 
+    @Query("SELECT * FROM search_history ORDER BY searchedAt DESC LIMIT :limit")
+    fun observeSearchHistory(limit: Int): Flow<List<SearchHistoryEntity>>
+
+    @Query("DELETE FROM search_history WHERE query = :query")
+    suspend fun deleteSearchQuery(query: String)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSearchQuery(item: SearchHistoryEntity)
+
+    @Transaction
+    suspend fun recordSearchQuery(query: String, searchedAt: Long) {
+        deleteSearchQuery(query)
+        insertSearchQuery(SearchHistoryEntity(query = query, searchedAt = searchedAt))
+    }
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertImportBatch(item: ImportBatchEntity)
 

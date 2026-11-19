@@ -155,7 +155,7 @@ fun FrameApp(
             }
             composable(Routes.HISTORY) { HistoryScreen(library, openVideo, onImport = { openImport() }) }
             composable(Routes.LIKED) { LikedScreen(library, openVideo, onImport = { openImport() }) }
-            composable(Routes.SEARCH) { SearchScreen(search, openVideo) }
+            composable(Routes.SEARCH) { SearchScreen(search, openVideo) { url -> nav.navigate(Routes.channel(url)) } }
             composable(Routes.DOWNLOADS) {
                 DownloadsScreen(container.downloads) { id -> nav.navigate(Routes.localPlayer(id)) }
             }

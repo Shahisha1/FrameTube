@@ -19,6 +19,7 @@ import app.frame.video.data.importer.TakeoutImporter
 import app.frame.video.data.importer.TakeoutParser
 import app.frame.video.data.local.VideoEntity
 import app.frame.video.data.local.ChannelEntity
+import app.frame.video.data.local.SearchHistoryEntity
 import app.frame.video.domain.LibraryCounts
 import app.frame.video.domain.LibraryRepository
 import app.frame.video.domain.PlaybackProgress
@@ -41,6 +42,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 class LibraryViewModel(private val repo: LibraryRepository) : ViewModel() {
     val history = repo.pagedHistory().cachedIn(viewModelScope)
@@ -58,20 +60,29 @@ class LibraryViewModel(private val repo: LibraryRepository) : ViewModel() {
 }
 
 class SearchViewModel(
-    repo: LibraryRepository,
+    private val repo: LibraryRepository,
     private val onlineProvider: VideoProvider
 ) : ViewModel() {
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query
     private val _submittedQuery = MutableStateFlow("")
     val submittedQuery: StateFlow<String> = _submittedQuery
-    private val _onlineResults = MutableStateFlow<List<VideoMetadataResult>>(emptyList())
-    val onlineResults: StateFlow<List<VideoMetadataResult>> = _onlineResults
+    private val _filter = MutableStateFlow("videos")
+    val filter: StateFlow<String> = _filter
+    private val _onlineResults = MutableStateFlow(app.frame.video.domain.provider.VideoSearchResult(emptyList(), null))
+    val onlineResults: StateFlow<app.frame.video.domain.provider.VideoSearchResult> = _onlineResults
     private val _onlineLoading = MutableStateFlow(false)
     val onlineLoading: StateFlow<Boolean> = _onlineLoading
+    private val _loadingMore = MutableStateFlow(false)
+    val loadingMore: StateFlow<Boolean> = _loadingMore
     private val _onlineError = MutableStateFlow<String?>(null)
     val onlineError: StateFlow<String?> = _onlineError
+    private val _suggestions = MutableStateFlow<List<String>>(emptyList())
+    val suggestions: StateFlow<List<String>> = _suggestions
+    val recentSearches: StateFlow<List<SearchHistoryEntity>> =
+        repo.observeSearchHistory(8).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     private var searchJob: Job? = null
+    private var suggestionJob: Job? = null
     private var requestGeneration: Int = 0
 
     fun setQuery(q: String) {
@@ -79,35 +90,97 @@ class SearchViewModel(
         if (q.trim() != _submittedQuery.value) {
             requestGeneration += 1
             searchJob?.cancel()
-            _onlineResults.value = emptyList()
+            _onlineResults.value = app.frame.video.domain.provider.VideoSearchResult(emptyList(), null)
             _onlineError.value = null
             _onlineLoading.value = false
         }
+        suggestionJob?.cancel()
+        _suggestions.value = emptyList()
+        val term = q.trim()
+        if (term.length >= 2 && term != _submittedQuery.value) {
+            suggestionJob = viewModelScope.launch {
+                delay(280)
+                try {
+                    _suggestions.value = onlineProvider.suggestions(term)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    _suggestions.value = emptyList()
+                }
+            }
+        }
     }
 
-    /** Explicit submit, with cancellable requests and visible failure state. */
+    fun selectFilter(value: String) {
+        if (value !in setOf("videos", "channels", "playlists")) return
+        if (_filter.value == value) return
+        _filter.value = value
+        if (_submittedQuery.value.isNotBlank() && _query.value.trim() == _submittedQuery.value) searchNow()
+    }
+
+    fun useSuggestion(value: String) {
+        _query.value = value
+        _suggestions.value = emptyList()
+        searchNow()
+    }
+
     fun searchNow() {
         val term = _query.value.trim()
         if (term.isBlank()) return
+        suggestionJob?.cancel()
+        _suggestions.value = emptyList()
         val generation = ++requestGeneration
+        val selectedFilter = _filter.value
         searchJob?.cancel()
         _submittedQuery.value = term
-        _onlineResults.value = emptyList()
+        _onlineResults.value = app.frame.video.domain.provider.VideoSearchResult(emptyList(), null)
         _onlineError.value = null
         searchJob = viewModelScope.launch {
             _onlineLoading.value = true
             try {
-                val result = onlineProvider.searchVideos(term)
-                if (requestGeneration == generation && _submittedQuery.value == term) {
-                    _onlineResults.value = result.items
+                repo.recordSearchQuery(term)
+                val result = onlineProvider.searchVideos(term, contentFilter = selectedFilter)
+                if (requestGeneration == generation && _submittedQuery.value == term && _filter.value == selectedFilter) {
+                    _onlineResults.value = result
                     _onlineError.value = result.errorMessage
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
-                if (requestGeneration == generation && _submittedQuery.value == term) _onlineError.value = "Search failed: ${error.message ?: error.javaClass.simpleName}"
+                if (requestGeneration == generation) _onlineError.value = "Search failed: ${error.message ?: error.javaClass.simpleName}"
             } finally {
-                if (requestGeneration == generation && _submittedQuery.value == term) _onlineLoading.value = false
+                if (requestGeneration == generation) _onlineLoading.value = false
+            }
+        }
+    }
+
+    fun loadMore() {
+        val token = _onlineResults.value.nextPageToken ?: return
+        if (_loadingMore.value || _onlineLoading.value) return
+        val generation = requestGeneration
+        val term = _submittedQuery.value
+        val selectedFilter = _filter.value
+        viewModelScope.launch {
+            _loadingMore.value = true
+            try {
+                val next = onlineProvider.searchVideos(term, token, selectedFilter)
+                if (generation == requestGeneration && term == _submittedQuery.value && selectedFilter == _filter.value) {
+                    val old = _onlineResults.value
+                    _onlineResults.value = old.copy(
+                        items = (old.items + next.items).distinctBy { it.videoId },
+                        channels = (old.channels + next.channels).distinctBy { it.url },
+                        playlists = (old.playlists + next.playlists).distinctBy { it.url },
+                        nextPageToken = next.nextPageToken,
+                        errorMessage = next.errorMessage
+                    )
+                    if (next.errorMessage != null) _onlineError.value = next.errorMessage
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                if (generation == requestGeneration) _onlineError.value = "Could not load more results. Try again."
+            } finally {
+                _loadingMore.value = false
             }
         }
     }
@@ -120,7 +193,6 @@ class SearchViewModel(
         .flatMapLatest { if (it.isEmpty()) flowOf(PagingData.empty<VideoEntity>()) else repo.searchVideos(it) }
         .cachedIn(viewModelScope)
 }
-
 sealed interface ImportUiState {
     data object Idle : ImportUiState
     data class Reading(val sourceName: String) : ImportUiState
@@ -280,7 +352,8 @@ class ChannelDetailViewModel(
             try {
                 val saved = library.getChannel(channelId)
                 val url = saved?.channelUrl?.takeIf { it.isNotBlank() }
-                    ?: "https://www.youtube.com/channel/$channelId"
+                    ?: if (channelId.startsWith("https://") || channelId.startsWith("http://")) channelId
+                    else "https://www.youtube.com/channel/$channelId"
                 val page = provider.getChannelPage(url)
                 val profile = page.profile
                 library.saveChannel(
@@ -307,7 +380,12 @@ class ChannelDetailViewModel(
 
     fun toggleSubscription() {
         viewModelScope.launch {
-            try { library.setSubscribed(channelId, !subscribed.value) }
+            try {
+                val next = !subscribed.value
+                library.setSubscribed(channelId, next)
+                val profileId = state.value.profile?.id
+                if (!profileId.isNullOrBlank() && profileId != channelId) library.setSubscribed(profileId, next)
+            }
             catch (_: Exception) { /* Subscription state remains backed by Room. */ }
         }
     }

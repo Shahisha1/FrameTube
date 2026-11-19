@@ -3,6 +3,7 @@ package app.frame.video.domain
 import androidx.paging.PagingData
 import app.frame.video.data.local.ChannelEntity
 import app.frame.video.data.local.PlaylistEntity
+import app.frame.video.data.local.SearchHistoryEntity
 import app.frame.video.data.local.VideoEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -19,6 +20,8 @@ interface LibraryRepository {
     fun searchVideos(query: String): Flow<PagingData<VideoEntity>>
     fun observePlaylist(id: String): Flow<PlaylistEntity?>
     fun observeRecentHistory(limit: Int): Flow<List<VideoEntity>>
+    fun observeSearchHistory(limit: Int): Flow<List<SearchHistoryEntity>>
+    suspend fun recordSearchQuery(query: String)
     fun observeCounts(): Flow<LibraryCounts>
     suspend fun getVideo(id: String): VideoEntity?
     fun observeIsLiked(videoId: String): Flow<Boolean>

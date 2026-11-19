@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.CircularProgressIndicator
@@ -116,20 +117,30 @@ private fun LibraryHeading(kicker: String, title: String, subtitle: String) {
 }
 
 @Composable
-fun SearchScreen(vm: SearchViewModel, onOpenVideo: (String) -> Unit) {
+fun SearchScreen(
+    vm: SearchViewModel,
+    onOpenVideo: (String) -> Unit,
+    onOpenChannel: (String) -> Unit
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val query by vm.query.collectAsStateWithLifecycle()
     val submittedQuery by vm.submittedQuery.collectAsStateWithLifecycle()
+    val filter by vm.filter.collectAsStateWithLifecycle()
     val online by vm.onlineResults.collectAsStateWithLifecycle()
     val loading by vm.onlineLoading.collectAsStateWithLifecycle()
+    val loadingMore by vm.loadingMore.collectAsStateWithLifecycle()
     val error by vm.onlineError.collectAsStateWithLifecycle()
+    val suggestions by vm.suggestions.collectAsStateWithLifecycle()
+    val recent by vm.recentSearches.collectAsStateWithLifecycle()
     val libraryItems = vm.results.collectAsLazyPagingItems()
+    val searching = submittedQuery == query.trim() && submittedQuery.isNotBlank()
 
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp)) {
             Text("DISCOVER", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             Text("Find a video", style = MaterialTheme.typography.headlineMedium)
             Text(
-                "Search online or find something in your saved library.",
+                "Search public videos, channels and playlists.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp, bottom = 14.dp)
@@ -142,7 +153,7 @@ fun SearchScreen(vm: SearchViewModel, onOpenVideo: (String) -> Unit) {
                     value = query,
                     onValueChange = vm::setQuery,
                     singleLine = true,
-                    label = { Text("Video title or topic") },
+                    label = { Text("Video, channel or topic") },
                     leadingIcon = { Icon(Icons.Default.PlayArrow, contentDescription = null) },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = { vm.searchNow() }),
@@ -154,83 +165,128 @@ fun SearchScreen(vm: SearchViewModel, onOpenVideo: (String) -> Unit) {
                     modifier = Modifier.padding(start = 8.dp)
                 ) { Text("Go") }
             }
+            androidx.compose.foundation.layout.Row(
+                Modifier.fillMaxWidth().padding(top = 10.dp),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
+            ) {
+                listOf("videos" to "Videos", "channels" to "Channels", "playlists" to "Playlists").forEach { (value, label) ->
+                    androidx.compose.material3.FilterChip(
+                        selected = filter == value,
+                        onClick = { vm.selectFilter(value) },
+                        label = { Text(label) }
+                    )
+                }
+            }
         }
         androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         LazyColumn(Modifier.weight(1f)) {
             if (query.isBlank()) {
-                item {
-                    Column(Modifier.fillMaxWidth().padding(24.dp)) {
-                        Text("Start with a topic", style = MaterialTheme.typography.titleLarge)
-                        Text(
-                            "Try a channel name, a game, a song, or a question.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 6.dp)
+                if (recent.isNotEmpty()) {
+                    item {
+                        Text("RECENT SEARCHES", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 18.dp, top = 18.dp, bottom = 6.dp))
+                    }
+                    items(recent, key = { it.id }) { item ->
+                        ListItem(
+                            headlineContent = { Text(item.query) },
+                            leadingContent = { Icon(Icons.Default.Search, contentDescription = null) },
+                            modifier = Modifier.clickable { vm.useSuggestion(item.query) }
                         )
+                    }
+                } else {
+                    item {
+                        Column(Modifier.fillMaxWidth().padding(24.dp)) {
+                            Text("Start with a topic", style = MaterialTheme.typography.titleLarge)
+                            Text("Try a channel name, a game, a song, or a question.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
+                        }
+                    }
+                }
+            } else if (!searching) {
+                if (suggestions.isNotEmpty()) {
+                    item {
+                        Text("SUGGESTED SEARCHES", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 18.dp, top = 16.dp, bottom = 6.dp))
+                    }
+                    items(suggestions, key = { it }) { suggestion ->
+                        ListItem(
+                            headlineContent = { Text(suggestion) },
+                            leadingContent = { Icon(Icons.Default.Search, contentDescription = null) },
+                            modifier = Modifier.clickable { vm.useSuggestion(suggestion) }
+                        )
+                    }
+                } else {
+                    item {
+                        Text("Press Go or Enter to search.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp))
                     }
                 }
             } else {
                 item {
                     Text(
-                        "ONLINE RESULTS",
+                        when (filter) { "channels" -> "CHANNEL RESULTS"; "playlists" -> "PLAYLIST RESULTS"; else -> "VIDEO RESULTS" },
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(start = 18.dp, top = 16.dp, bottom = 6.dp)
                     )
                 }
-                if (submittedQuery != query.trim()) {
+                if (loading && online.items.isEmpty() && online.channels.isEmpty() && online.playlists.isEmpty()) {
                     item {
-                        Text(
-                            "Press Go or Enter to search.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp)
-                        )
+                        androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
                     }
-                } else when {
-                    loading -> item {
-                        androidx.compose.foundation.layout.Box(
-                            Modifier.fillMaxWidth().padding(24.dp),
-                            contentAlignment = androidx.compose.ui.Alignment.Center
-                        ) { CircularProgressIndicator() }
-                    }
-                    error != null -> item {
+                } else if (error != null && online.items.isEmpty() && online.channels.isEmpty() && online.playlists.isEmpty()) {
+                    item {
                         Column(Modifier.fillMaxWidth().padding(18.dp)) {
                             Text(error.orEmpty(), color = MaterialTheme.colorScheme.error)
                             Button(onClick = vm::searchNow, modifier = Modifier.padding(top = 8.dp)) { Text("Try again") }
                         }
                     }
-                    online.isEmpty() -> item {
-                        Text(
-                            "No online videos found. Try another search.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp)
-                        )
+                } else when (filter) {
+                    "channels" -> {
+                        if (online.channels.isEmpty()) item { Text("No channels found.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(18.dp)) }
+                        items(online.channels, key = { it.url }) { channel ->
+                            ListItem(
+                                headlineContent = { Text(channel.title, maxLines = 2) },
+                                supportingContent = { Text("YouTube channel") },
+                                leadingContent = { if (!channel.thumbnailUrl.isNullOrBlank()) VideoThumbnail(channel.thumbnailUrl, Modifier.size(56.dp)) else Icon(Icons.Default.AccountCircle, null) },
+                                modifier = Modifier.clickable { onOpenChannel(channel.url) }
+                            )
+                        }
                     }
-                    else -> items(online, key = { it.videoId }) { result -> OnlineVideoRow(result, onOpenVideo) }
+                    "playlists" -> {
+                        if (online.playlists.isEmpty()) item { Text("No playlists found.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(18.dp)) }
+                        items(online.playlists, key = { it.url }) { playlist ->
+                            ListItem(
+                                headlineContent = { Text(playlist.title, maxLines = 2) },
+                                supportingContent = { Text("Open playlist on YouTube") },
+                                leadingContent = { if (!playlist.thumbnailUrl.isNullOrBlank()) VideoThumbnail(playlist.thumbnailUrl, Modifier.size(72.dp, 48.dp)) else Icon(Icons.Default.List, null) },
+                                modifier = Modifier.clickable {
+                                    runCatching {
+                                        context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(playlist.url)))
+                                    }
+                                }
+                            )
+                        }
+                    }
+                    else -> {
+                        if (online.items.isEmpty()) item { Text("No videos found.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(18.dp)) }
+                        items(online.items, key = { it.videoId }) { result -> OnlineVideoRow(result, onOpenVideo) }
+                    }
+                }
+                if (online.nextPageToken != null) {
+                    item {
+                        Button(onClick = vm::loadMore, enabled = !loadingMore, modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp)) {
+                            if (loadingMore) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                            else Text("Load more")
+                        }
+                    }
                 }
                 item {
-                    androidx.compose.material3.HorizontalDivider(
-                        Modifier.padding(top = 12.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant
-                    )
-                    Text(
-                        "YOUR LIBRARY",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 18.dp, top = 18.dp, bottom = 6.dp)
-                    )
+                    androidx.compose.material3.HorizontalDivider(Modifier.padding(top = 12.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                    Text("YOUR LIBRARY", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 18.dp, top = 18.dp, bottom = 6.dp))
                 }
                 if (libraryItems.itemCount == 0) {
-                    item {
-                        Text(
-                            "No saved videos match this search.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp)
-                        )
-                    }
+                    item { Text("No saved videos match this search.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp)) }
                 } else {
-                    items(count = libraryItems.itemCount) { index ->
-                        libraryItems[index]?.let { VideoRow(it, onOpenVideo) }
-                    }
+                    items(count = libraryItems.itemCount) { index -> libraryItems[index]?.let { VideoRow(it, onOpenVideo) } }
                 }
             }
         }
