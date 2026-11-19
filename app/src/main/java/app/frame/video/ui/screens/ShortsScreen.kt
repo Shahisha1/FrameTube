@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -45,13 +47,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import androidx.media3.common.MediaItem
-import androidx.media3.common.PlaybackException
-import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import app.frame.video.core.provider.PlaybackResolution
+import app.frame.video.core.player.PlaybackSession
+import app.frame.video.domain.playback.PlaybackQueueEntry
+import app.frame.video.domain.playback.PlaybackQueueMode
 import app.frame.video.core.provider.ProviderManager
 import app.frame.video.domain.LibraryRepository
 import app.frame.video.domain.provider.VideoMetadataResult
@@ -65,22 +66,47 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * A single-active-player vertical feed. Inactive pager pages render only a
- * thumbnail; the Media3 player is created for the selected page and released
- * when that page leaves composition.
+ * A vertical Shorts feed backed by the app-wide playback session. Inactive
+ * pages render thumbnails; the selected page attaches the shared Media3 player.
  */
 @Composable
 fun ShortsScreen(
     discovery: DiscoveryViewModel,
     providers: ProviderManager,
     library: LibraryRepository,
+    session: PlaybackSession,
     onOpenVideo: (String) -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    onOpenSearch: () -> Unit = {}
 ) {
     val feed by discovery.state.collectAsStateWithLifecycle()
     val shorts = feed.shortsVideos
     val pagerState = rememberPagerState(pageCount = { shorts.size })
     val scope = rememberCoroutineScope()
+    val sessionState by session.state.collectAsStateWithLifecycle()
+
+    LaunchedEffect(shorts) {
+        if (shorts.isNotEmpty()) {
+            val activeIndex = shorts.indexOfFirst { it.videoId == sessionState.currentVideoId }
+                .takeIf { it >= 0 } ?: pagerState.currentPage.coerceIn(0, shorts.lastIndex)
+            session.setQueue(
+                entries = shorts.map { PlaybackQueueEntry(it.videoId, it.title.orEmpty(), it.thumbnailUrl) },
+                mode = PlaybackQueueMode.SHORTS,
+                startIndex = activeIndex
+            )
+        }
+    }
+
+    LaunchedEffect(pagerState.currentPage) {
+        session.pause()
+    }
+
+    LaunchedEffect(sessionState.currentVideoId, shorts) {
+        val activeIndex = shorts.indexOfFirst { it.videoId == sessionState.currentVideoId }
+        if (activeIndex >= 0 && activeIndex != pagerState.currentPage) {
+            pagerState.animateScrollToPage(activeIndex)
+        }
+    }
 
     LaunchedEffect(pagerState.currentPage, shorts) {
         val nextVideo = shorts.getOrNull(pagerState.currentPage + 1) ?: return@LaunchedEffect
@@ -134,11 +160,7 @@ fun ShortsScreen(
                         total = shorts.size,
                         vm = playerVm,
                         library = library,
-                        onEnded = {
-                            if (page < shorts.lastIndex) {
-                                scope.launch { pagerState.animateScrollToPage(page + 1) }
-                            }
-                        },
+                        session = session,
                         onOpenVideo = onOpenVideo
                     )
                 } else {
@@ -147,19 +169,26 @@ fun ShortsScreen(
             }
         }
 
-        IconButton(
-            onClick = onClose,
-            modifier = Modifier.align(Alignment.TopStart).padding(start = 10.dp, top = 10.dp)
-                .background(Color.Black.copy(alpha = 0.35f), MaterialTheme.shapes.small)
+        Row(
+            Modifier.align(Alignment.TopStart).padding(start = 8.dp, top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Icon(Icons.Default.Close, contentDescription = "Close Shorts", tint = Color.White)
+            IconButton(
+                onClick = { session.pause(); onClose() },
+                modifier = Modifier.background(Color.Black.copy(alpha = 0.34f), MaterialTheme.shapes.small)
+            ) {
+                Icon(Icons.Default.Close, contentDescription = "Close Shorts", tint = Color.White)
+            }
+            Text("Shorts", color = Color.White, style = MaterialTheme.typography.titleLarge)
         }
-        Text(
-            "SHORTS",
-            color = Color.White,
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.align(Alignment.TopCenter).padding(top = 20.dp)
-        )
+        IconButton(
+            onClick = onOpenSearch,
+            modifier = Modifier.align(Alignment.TopEnd).padding(end = 8.dp, top = 8.dp)
+                .background(Color.Black.copy(alpha = 0.34f), MaterialTheme.shapes.small)
+        ) {
+            Icon(Icons.Default.Search, contentDescription = "Search videos", tint = Color.White)
+        }
     }
 }
 
@@ -179,12 +208,13 @@ private fun ShortsActivePage(
     total: Int,
     vm: PlayerViewModel,
     library: LibraryRepository,
-    onEnded: () -> Unit,
+    session: PlaybackSession,
     onOpenVideo: (String) -> Unit
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val liked by remember(video.videoId) { library.observeIsLiked(video.videoId) }
         .collectAsStateWithLifecycle(initialValue = false)
+    val sessionState by session.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -198,7 +228,7 @@ private fun ShortsActivePage(
                 videoId = video.videoId,
                 source = playback.source,
                 vm = vm,
-                onEnded = onEnded
+                session = session
             )
             is PlayerUiState.Failed -> Column(
                 Modifier.align(Alignment.Center).padding(28.dp),
@@ -213,6 +243,19 @@ private fun ShortsActivePage(
             }
         }
 
+        if (sessionState.currentVideoId == video.videoId && sessionState.error != null) {
+            Column(
+                Modifier.align(Alignment.Center).padding(28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(sessionState.error.orEmpty(), color = Color.White, style = MaterialTheme.typography.bodyMedium)
+                IconButton(onClick = session::retryCurrent) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Retry Short", tint = Color.White)
+                }
+            }
+        }
+
         Column(
             Modifier.align(Alignment.BottomStart).fillMaxWidth(0.78f)
                 .background(Color.Black.copy(alpha = 0.30f))
@@ -220,46 +263,53 @@ private fun ShortsActivePage(
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text(video.title.orEmpty(), color = Color.White, style = MaterialTheme.typography.titleMedium, maxLines = 3)
-            Text("Short · ${index + 1} of ${total}", color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.labelSmall)
+            Text("YouTube · Short ${index + 1} of ${total}", color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.labelSmall)
         }
 
         Column(
-            Modifier.align(Alignment.CenterEnd).padding(end = 10.dp, bottom = 36.dp),
+            Modifier.align(Alignment.CenterEnd).padding(end = 8.dp, bottom = 30.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            IconToggleButton(
-                checked = liked,
-                onCheckedChange = { requested ->
-                    scope.launch {
-                        try {
-                            library.ensureVideo(video.videoId, video.title, video.thumbnailUrl)
-                            library.setLiked(video.videoId, requested)
-                        } catch (cancelled: CancellationException) {
-                            throw cancelled
-                        } catch (_: Exception) {
-                            // The Shorts player stays usable if a local write fails.
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                IconToggleButton(
+                    checked = liked,
+                    onCheckedChange = { requested ->
+                        scope.launch {
+                            try {
+                                library.ensureVideo(video.videoId, video.title, video.thumbnailUrl)
+                                library.setLiked(video.videoId, requested)
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (_: Exception) { }
                         }
                     }
+                ) {
+                    Icon(
+                        if (liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = if (liked) "Unlike Short" else "Like Short",
+                        tint = if (liked) Color(0xFFFF5A70) else Color.White
+                    )
                 }
-            ) {
-                Icon(
-                    if (liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = if (liked) "Unlike Short" else "Like Short",
-                    tint = if (liked) Color(0xFFFF5A70) else Color.White
-                )
+                Text("Like", color = Color.White, style = MaterialTheme.typography.labelSmall)
             }
-            IconButton(onClick = {
-                val intent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_TEXT, "https://www.youtube.com/watch?v=${video.videoId}")
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                IconButton(onClick = {
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, "https://www.youtube.com/watch?v=${video.videoId}")
+                    }
+                    context.startActivity(Intent.createChooser(intent, "Share Short"))
+                }) {
+                    Icon(Icons.Default.Share, contentDescription = "Share Short", tint = Color.White)
                 }
-                context.startActivity(Intent.createChooser(intent, "Share Short"))
-            }) {
-                Icon(Icons.Default.Share, contentDescription = "Share Short", tint = Color.White)
+                Text("Share", color = Color.White, style = MaterialTheme.typography.labelSmall)
             }
-            IconButton(onClick = { onOpenVideo(video.videoId) }) {
-                Icon(Icons.Default.Info, contentDescription = "Video details", tint = Color.White)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                IconButton(onClick = { onOpenVideo(video.videoId) }) {
+                    Icon(Icons.Default.Info, contentDescription = "Video details", tint = Color.White)
+                }
+                Text("Details", color = Color.White, style = MaterialTheme.typography.labelSmall)
             }
         }
     }
@@ -270,68 +320,51 @@ private fun ShortsExoSurface(
     videoId: String,
     source: PlaybackResolution.Ready,
     vm: PlayerViewModel,
-    onEnded: () -> Unit
+    session: PlaybackSession
 ) {
-    val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val player = remember(source.uri) {
-        ExoPlayer.Builder(context).build().apply {
-            val mediaItem = MediaItem.Builder().setUri(source.uri).apply {
-                source.mimeType?.let { setMimeType(it) }
-            }.build()
-            setMediaItem(mediaItem)
-            seekTo(vm.positionMs)
-            prepare()
-            playWhenReady = true
-        }
-    }
-    var wasPlayingBeforeStop by remember(player) { mutableStateOf(false) }
+    val player = session.player
 
-    LaunchedEffect(player) {
+    LaunchedEffect(videoId, source.uri) {
+        session.playQueued(PlaybackQueueEntry(videoId, ""), source, vm.positionMs)
+    }
+
+    LaunchedEffect(player, videoId) {
         while (true) {
             delay(5_000)
-            vm.savePosition(player.currentPosition, player.duration)
+            if (player.currentMediaItem?.mediaId == videoId) {
+                vm.positionMs = player.currentPosition
+                vm.savePosition(player.currentPosition, player.duration)
+            }
         }
     }
 
-    DisposableEffect(player, lifecycleOwner) {
-        val listener = object : Player.Listener {
-            override fun onPlayerError(error: PlaybackException) {
-                vm.positionMs = player.currentPosition
-                vm.savePosition(player.currentPosition, player.duration)
-                vm.failPlayback("Playback stopped (${error.errorCodeName}). Check your connection and try again.")
-            }
-
-            override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_ENDED) {
-                    vm.savePosition(player.currentPosition, player.duration, ended = true)
-                    onEnded()
-                }
-            }
-        }
+    var wasPlayingBeforeStop by remember(videoId) { mutableStateOf(false) }
+    DisposableEffect(player, lifecycleOwner, videoId) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_STOP -> {
+                Lifecycle.Event.ON_STOP -> if (player.currentMediaItem?.mediaId == videoId) {
                     wasPlayingBeforeStop = player.isPlaying
                     vm.positionMs = player.currentPosition
                     vm.savePosition(player.currentPosition, player.duration)
-                    player.pause()
+                    session.pause()
                 }
-                Lifecycle.Event.ON_START -> if (wasPlayingBeforeStop) {
-                    player.play()
+                Lifecycle.Event.ON_START -> if (
+                    wasPlayingBeforeStop && player.currentMediaItem?.mediaId == videoId
+                ) {
+                    session.resume()
                     wasPlayingBeforeStop = false
                 }
                 else -> Unit
             }
         }
-        player.addListener(listener)
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
-            vm.positionMs = player.currentPosition
-            vm.savePosition(player.currentPosition, player.duration)
+            if (player.currentMediaItem?.mediaId == videoId) {
+                vm.positionMs = player.currentPosition
+                vm.savePosition(player.currentPosition, player.duration)
+            }
             lifecycleOwner.lifecycle.removeObserver(observer)
-            player.removeListener(listener)
-            player.release()
         }
     }
 
@@ -345,8 +378,6 @@ private fun ShortsExoSurface(
             }
         },
         update = { it.player = player },
-        modifier = Modifier.fillMaxSize().clickable {
-            if (player.isPlaying) player.pause() else player.play()
-        }
+        modifier = Modifier.fillMaxSize().clickable { session.togglePlayback() }
     )
 }

@@ -4,16 +4,20 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -30,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -81,35 +86,53 @@ fun VideoThumbnail(url: String?, modifier: Modifier = Modifier) {
         model = url,
         contentDescription = null,
         contentScale = ContentScale.Crop,
-        modifier = modifier.clip(RoundedCornerShape(8.dp))
+        modifier = modifier.clip(RoundedCornerShape(10.dp))
     )
 }
 
 @Composable
 fun VideoRow(video: VideoEntity, onOpen: (String) -> Unit, trailingContent: (@Composable () -> Unit)? = null) {
-    val idOnly = video.title == video.id
-    ListItem(
-        headlineContent = {
-            Text(if (idOnly) "Video ${video.id}" else video.title, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        },
-        supportingContent = {
+    val title = video.title.takeIf { it != video.id } ?: "Video ${video.id}"
+    Row(
+        Modifier.fillMaxWidth().clickable(onClickLabel = "Open video") { onOpen(video.id) }
+            .padding(horizontal = 12.dp, vertical = 7.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Box(Modifier.size(144.dp, 81.dp)) {
+            if (!video.thumbnailUrl.isNullOrBlank()) {
+                VideoThumbnail(video.thumbnailUrl, Modifier.fillMaxSize())
+            } else {
+                Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            video.durationSeconds?.takeIf { it > 0L }?.let {
+                val total = it
+                val label = "%d:%02d".format(total / 60, total % 60)
+                Text(
+                    label,
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(3.dp)
+                        .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.82f), RoundedCornerShape(2.dp))
+                        .padding(horizontal = 4.dp, vertical = 1.dp),
+                    color = androidx.compose.ui.graphics.Color.White,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+        Column(Modifier.weight(1f).padding(top = 1.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(
-                if (idOnly) "Saved from Takeout · details not loaded"
-                else video.source.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() },
-                maxLines = 1,
+                if (video.channelId.isNullOrBlank()) "YouTube" else video.source.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
-        },
-        leadingContent = {
-            if (!video.thumbnailUrl.isNullOrBlank()) VideoThumbnail(video.thumbnailUrl, Modifier.size(116.dp, 66.dp))
-            else Box(Modifier.size(116.dp, 66.dp), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        },
-        trailingContent = trailingContent,
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
-        modifier = Modifier.clickable(onClickLabel = "Open video") { onOpen(video.id) }
-    )
+        }
+        trailingContent?.invoke()
+    }
 }
 
 fun openOnYouTube(context: Context, videoId: String) {

@@ -6,6 +6,7 @@ import android.content.Context
 import app.frame.video.core.datastore.FramePreferences
 import app.frame.video.core.provider.FallbackPlaybackProvider
 import app.frame.video.core.provider.ProviderManager
+import app.frame.video.core.player.PlaybackSession
 import app.frame.video.core.provider.newpipe.NewPipePlaybackProvider
 import app.frame.video.core.provider.piped.PipedApi
 import app.frame.video.core.provider.piped.PipedPlaybackProvider
@@ -43,6 +44,7 @@ class AppContainer(context: Context) {
             )
         )
     }
+    val playbackSession by lazy { PlaybackSession(appContext, providerManager) }
 }
 
 class FrameApplication : Application() {

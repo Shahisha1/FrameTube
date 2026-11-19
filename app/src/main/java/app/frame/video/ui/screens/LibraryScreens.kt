@@ -1,12 +1,29 @@
 package app.frame.video.ui.screens
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import app.frame.video.ui.viewmodel.DiscoveryViewModel
+import coil.compose.AsyncImage
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,6 +32,7 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -39,6 +57,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -254,7 +273,8 @@ private fun LibraryHeading(kicker: String, title: String, subtitle: String) {
 fun SearchScreen(
     vm: SearchViewModel,
     onOpenVideo: (String) -> Unit,
-    onOpenChannel: (String) -> Unit
+    onOpenChannel: (String) -> Unit,
+    onBack: () -> Unit = {}
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val query by vm.query.collectAsStateWithLifecycle()
@@ -270,46 +290,53 @@ fun SearchScreen(
     val searching = submittedQuery == query.trim() && submittedQuery.isNotBlank()
 
     Column(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp)) {
-            Text("DISCOVER", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-            Text("Find a video", style = MaterialTheme.typography.headlineMedium)
-            Text(
-                "Search public videos, channels and playlists.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp, bottom = 14.dp)
-            )
-            androidx.compose.foundation.layout.Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = vm::setQuery,
-                    singleLine = true,
-                    label = { Text("Video, channel or topic") },
-                    leadingIcon = { Icon(Icons.Default.PlayArrow, contentDescription = null) },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { vm.searchNow() }),
-                    modifier = Modifier.weight(1f)
+        Row(
+            Modifier.fillMaxWidth().padding(start = 4.dp, end = 14.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back") }
+            TextField(
+                value = query,
+                onValueChange = vm::setQuery,
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                placeholder = { Text("Search YouTube") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (query.isNotEmpty()) IconButton(onClick = { vm.setQuery("") }) {
+                        Icon(Icons.Default.Clear, contentDescription = "Clear search")
+                    }
+                },
+                shape = RoundedCornerShape(26.dp),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { vm.searchNow() }),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                    unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent
                 )
-                Button(
-                    onClick = vm::searchNow,
-                    enabled = query.isNotBlank(),
-                    modifier = Modifier.padding(start = 8.dp)
-                ) { Text("Go") }
-            }
-            androidx.compose.foundation.layout.Row(
-                Modifier.fillMaxWidth().padding(top = 10.dp),
-                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
-            ) {
-                listOf("videos" to "Videos", "channels" to "Channels", "playlists" to "Playlists").forEach { (value, label) ->
-                    androidx.compose.material3.FilterChip(
-                        selected = filter == value,
-                        onClick = { vm.selectFilter(value) },
-                        label = { Text(label) }
+            )
+        }
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            listOf("videos" to "Videos", "channels" to "Channels", "playlists" to "Playlists").forEach { (value, label) ->
+                FilterChip(
+                    selected = filter == value,
+                    onClick = { vm.selectFilter(value) },
+                    label = { Text(label) },
+                    shape = RoundedCornerShape(8.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        labelColor = MaterialTheme.colorScheme.onSurface,
+                        selectedContainerColor = MaterialTheme.colorScheme.onSurface,
+                        selectedLabelColor = MaterialTheme.colorScheme.background
                     )
-                }
+                )
             }
         }
         androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -317,7 +344,7 @@ fun SearchScreen(
             if (query.isBlank()) {
                 if (recent.isNotEmpty()) {
                     item {
-                        Text("RECENT SEARCHES", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 18.dp, top = 18.dp, bottom = 6.dp))
+                        Text("Recent searches", style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, modifier = Modifier.padding(start = 16.dp, top = 18.dp, bottom = 6.dp))
                     }
                     items(recent, key = { it.id }) { item ->
                         ListItem(
@@ -328,17 +355,14 @@ fun SearchScreen(
                     }
                 } else {
                     item {
-                        Column(Modifier.fillMaxWidth().padding(24.dp)) {
-                            Text("Start with a topic", style = MaterialTheme.typography.titleLarge)
-                            Text("Try a channel name, a game, a song, or a question.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
+                        Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("Search videos, channels and playlists", style = MaterialTheme.typography.titleMedium)
+                            Text("Your search history stays on this device.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
             } else if (!searching) {
                 if (suggestions.isNotEmpty()) {
-                    item {
-                        Text("SUGGESTED SEARCHES", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 18.dp, top = 16.dp, bottom = 6.dp))
-                    }
                     items(suggestions, key = { it }) { suggestion ->
                         ListItem(
                             headlineContent = { Text(suggestion) },
@@ -347,30 +371,20 @@ fun SearchScreen(
                         )
                     }
                 } else {
-                    item {
-                        Text("Press Go or Enter to search.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp))
-                    }
+                    item { Text("Press Enter to search.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(18.dp)) }
                 }
             } else {
-                item {
-                    Text(
-                        when (filter) { "channels" -> "CHANNEL RESULTS"; "playlists" -> "PLAYLIST RESULTS"; else -> "VIDEO RESULTS" },
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 18.dp, top = 16.dp, bottom = 6.dp)
-                    )
-                }
                 if (loading && online.items.isEmpty() && online.channels.isEmpty() && online.playlists.isEmpty()) {
                     item {
-                        androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                        Box(Modifier.fillMaxWidth().padding(28.dp), contentAlignment = androidx.compose.ui.Alignment.Center) {
                             CircularProgressIndicator()
                         }
                     }
                 } else if (error != null && online.items.isEmpty() && online.channels.isEmpty() && online.playlists.isEmpty()) {
                     item {
-                        Column(Modifier.fillMaxWidth().padding(18.dp)) {
+                        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(error.orEmpty(), color = MaterialTheme.colorScheme.error)
-                            Button(onClick = vm::searchNow, modifier = Modifier.padding(top = 8.dp)) { Text("Try again") }
+                            Button(onClick = vm::searchNow) { Text("Try again") }
                         }
                     }
                 } else when (filter) {
@@ -380,7 +394,12 @@ fun SearchScreen(
                             ListItem(
                                 headlineContent = { Text(channel.title, maxLines = 2) },
                                 supportingContent = { Text("YouTube channel") },
-                                leadingContent = { if (!channel.thumbnailUrl.isNullOrBlank()) VideoThumbnail(channel.thumbnailUrl, Modifier.size(56.dp)) else Icon(Icons.Default.AccountCircle, null) },
+                                leadingContent = {
+                                    if (!channel.thumbnailUrl.isNullOrBlank()) AsyncImage(
+                                        model = channel.thumbnailUrl, contentDescription = null,
+                                        modifier = Modifier.size(48.dp).clip(CircleShape)
+                                    ) else Icon(Icons.Default.AccountCircle, null)
+                                },
                                 modifier = Modifier.clickable { onOpenChannel(channel.url) }
                             )
                         }
@@ -390,8 +409,11 @@ fun SearchScreen(
                         items(online.playlists, key = { it.url }) { playlist ->
                             ListItem(
                                 headlineContent = { Text(playlist.title, maxLines = 2) },
-                                supportingContent = { Text("Open playlist on YouTube") },
-                                leadingContent = { if (!playlist.thumbnailUrl.isNullOrBlank()) VideoThumbnail(playlist.thumbnailUrl, Modifier.size(72.dp, 48.dp)) else Icon(Icons.Default.List, null) },
+                                supportingContent = { Text("YouTube playlist") },
+                                leadingContent = {
+                                    if (!playlist.thumbnailUrl.isNullOrBlank()) VideoThumbnail(playlist.thumbnailUrl, Modifier.size(112.dp, 63.dp))
+                                    else Icon(Icons.Default.List, null)
+                                },
                                 modifier = Modifier.clickable {
                                     runCatching {
                                         context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(playlist.url)))
@@ -402,7 +424,19 @@ fun SearchScreen(
                     }
                     else -> {
                         if (online.items.isEmpty()) item { Text("No videos found.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(18.dp)) }
-                        items(online.items, key = { it.videoId }) { result -> OnlineVideoRow(result, onOpenVideo) }
+                        items(online.items, key = { it.videoId }) { result ->
+                            VideoRow(
+                                app.frame.video.data.local.VideoEntity(
+                                    id = result.videoId,
+                                    title = result.title?.takeIf { it.isNotBlank() } ?: "YouTube video",
+                                    channelId = result.channelId,
+                                    thumbnailUrl = result.thumbnailUrl,
+                                    durationSeconds = result.durationSeconds,
+                                    source = "YOUTUBE"
+                                ),
+                                onOpenVideo
+                            )
+                        }
                     }
                 }
                 if (online.nextPageToken != null) {
@@ -415,12 +449,83 @@ fun SearchScreen(
                 }
                 item {
                     androidx.compose.material3.HorizontalDivider(Modifier.padding(top = 12.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                    Text("YOUR LIBRARY", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 18.dp, top = 18.dp, bottom = 6.dp))
+                    Text("Saved in your library", style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, modifier = Modifier.padding(start = 16.dp, top = 18.dp, bottom = 6.dp))
                 }
                 if (libraryItems.itemCount == 0) {
                     item { Text("No saved videos match this search.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp)) }
                 } else {
                     items(count = libraryItems.itemCount) { index -> libraryItems[index]?.let { VideoRow(it, onOpenVideo) } }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SubscriptionsScreen(
+    vm: LibraryViewModel,
+    discovery: DiscoveryViewModel,
+    onImport: () -> Unit,
+    onOpenChannel: (String) -> Unit,
+    onOpenVideo: (String) -> Unit
+) {
+    val channels = vm.channels.collectAsLazyPagingItems()
+    val feed by discovery.state.collectAsStateWithLifecycle()
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+        ) {
+            Text("Subscriptions", modifier = Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+            IconButton(onClick = discovery::refresh) { Icon(Icons.Default.Refresh, contentDescription = "Refresh subscriptions") }
+        }
+        if (channels.itemCount > 0) {
+            androidx.compose.foundation.lazy.LazyRow(
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
+                items(channels.itemCount) { index ->
+                    channels[index]?.let { channel ->
+                        Column(
+                            Modifier.width(72.dp).clickable { onOpenChannel(channel.id) },
+                            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (!channel.thumbnailUrl.isNullOrBlank()) AsyncImage(
+                                model = channel.thumbnailUrl, contentDescription = channel.title,
+                                modifier = Modifier.size(56.dp).clip(CircleShape)
+                            ) else Box(
+                                Modifier.size(56.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = androidx.compose.ui.Alignment.Center
+                            ) { Text(channel.title.take(1).uppercase()) }
+                            Text(channel.title, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                        }
+                    }
+                }
+            }
+        }
+        androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        when {
+            feed.loading && feed.videos.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) { CircularProgressIndicator() }
+            feed.videos.isEmpty() -> EmptyState(
+                "No recent uploads",
+                "Subscribe to channels to see their latest public videos here.",
+                "Import subscriptions",
+                onImport
+            )
+            else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 16.dp)) {
+                items(feed.videos, key = { it.videoId }) { video ->
+                    VideoRow(
+                        app.frame.video.data.local.VideoEntity(
+                            id = video.videoId,
+                            title = video.title?.takeIf { it.isNotBlank() } ?: "YouTube video",
+                            channelId = video.channelId,
+                            thumbnailUrl = video.thumbnailUrl,
+                            durationSeconds = video.durationSeconds,
+                            source = "YOUTUBE"
+                        ),
+                        onOpenVideo
+                    )
                 }
             }
         }
