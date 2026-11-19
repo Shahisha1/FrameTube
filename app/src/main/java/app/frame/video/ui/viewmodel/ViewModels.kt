@@ -295,21 +295,32 @@ class DiscoveryViewModel(
     }
 
     private suspend fun loadDiscovery(lastWatchedTitle: String?) {
-        val context = lastWatchedTitle?.takeIf { it.isNotBlank() && it.length > 2 }
-        val query = context?.take(90) ?: "popular videos"
+        val context = lastWatchedTitle?.takeIf { it.isNotBlank() && it.length > 2 }?.take(90)
+        val queries = listOfNotNull(context, "popular videos", "trending videos").distinct()
         _state.value = _state.value.copy(discoveryLoading = true, discoveryError = null)
         try {
-            val result = withTimeoutOrNull(20_000) { videoProvider.searchVideos(query) }
-            if (result == null) {
-                _state.value = _state.value.copy(discoveryLoading = false, discoveryError = "Discovery took too long. Try refreshing.")
-            } else {
-                _state.value = _state.value.copy(
-                    discoveryLoading = false,
-                    discoveredVideos = result.items.distinctBy { it.videoId }.take(20),
-                    discoveryError = result.errorMessage?.takeIf { result.items.isEmpty() },
-                    discoveryContext = context?.let { "Because you watched $it" } ?: "Popular videos to explore"
-                )
+            var lastError: String? = null
+            var successfulQuery: String? = null
+            var videos: List<VideoMetadataResult> = emptyList()
+            for (query in queries) {
+                val result = withTimeoutOrNull(12_000) { videoProvider.searchVideos(query) }
+                if (result == null) {
+                    lastError = "Discovery took too long. Check your connection and try again."
+                    continue
+                }
+                if (result.items.isNotEmpty()) {
+                    videos = result.items.distinctBy { it.videoId }.take(24)
+                    successfulQuery = query
+                    break
+                }
+                if (result.errorMessage != null) lastError = result.errorMessage
             }
+            _state.value = _state.value.copy(
+                discoveryLoading = false,
+                discoveredVideos = videos,
+                discoveryError = if (videos.isEmpty()) lastError ?: "No public videos were returned. Try refreshing or search for a topic." else null,
+                discoveryContext = if (successfulQuery == context && context != null) "Because you watched $context" else "Picked for you"
+            )
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {

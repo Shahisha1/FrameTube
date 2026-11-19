@@ -14,16 +14,16 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -52,151 +52,78 @@ fun HomeScreen(
     val counts by vm.counts.collectAsStateWithLifecycle()
     val recent by vm.recent.collectAsStateWithLifecycle()
     val feed by discovery.state.collectAsStateWithLifecycle()
-    val recommendations = remember(feed.videos, hideShorts, mutedKeywords, maxPerChannel) {
+    val subscriptions = remember(feed.videos, hideShorts, mutedKeywords, maxPerChannel) {
         app.frame.video.domain.filterRecommendations(feed.videos, hideShorts, mutedKeywords, maxPerChannel)
+    }
+    val discoveryVideos = remember(feed.discoveredVideos, feed.videos, hideShorts, mutedKeywords, maxPerChannel) {
+        app.frame.video.domain.filterRecommendations(
+            feed.discoveredVideos.filterNot { candidate -> feed.videos.any { it.videoId == candidate.videoId } },
+            hideShorts, mutedKeywords, maxPerChannel
+        ).take(18)
     }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 28.dp),
-        verticalArrangement = Arrangement.spacedBy(22.dp)
+        contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text(if (counts.isEmpty) "A HOME FOR YOUR WATCH HISTORY" else "WELCOME BACK", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
-                Text(if (counts.isEmpty) "Your videos, your space." else "Your library", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                Text("YOUR NEXT WATCH", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                Text("For you", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
                 Text(
-                    if (counts.isEmpty) "Bring your saved videos and subscriptions into Frame. Your library stays on this device."
-                    else "Pick up where you left off, or find something new from your channels.",
-                    style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant
+                    "A mix of channels you follow and videos discovered from your viewing.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
-        if (counts.isEmpty) {
-            item {
-                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-                    Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.primaryContainer) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.padding(12.dp))
-                        }
-                        Text("Make Frame yours", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                        Text("Import your Google Takeout archive to restore subscriptions, playlists and watch history. Or search for a video to start fresh.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Button(onClick = onOpenImport, modifier = Modifier.fillMaxWidth()) {
-                            Text("Import library")
-                            Spacer(Modifier.weight(1f))
-                            Icon(Icons.Default.ArrowForward, contentDescription = null)
-                        }
-                        OutlinedButton(onClick = onOpenSearch, modifier = Modifier.fillMaxWidth()) { Text("Explore videos") }
-                    }
-                }
-            }
-            item { Text("PRIVATE BY DESIGN  ·  Your imported library stays on this device", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        } else {
-            item {
-                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-                    Row(Modifier.fillMaxWidth().padding(vertical = 18.dp, horizontal = 10.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        LibraryStat(counts.videos.toString(), "VIDEOS")
-                        LibraryStat(counts.channels.toString(), "CHANNELS")
-                        LibraryStat(counts.playlists.toString(), "PLAYLISTS")
-                        LibraryStat(counts.watched.toString(), "WATCHED")
-                    }
-                }
-            }
-            item {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text("Recommended from your channels", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                        Text("Recent public uploads, shaped by your feed filters", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    androidx.compose.material3.IconButton(onClick = discovery::refresh) { Icon(Icons.Default.Refresh, contentDescription = "Refresh recommendations") }
-                }
-            }
-            when {
-                feed.loading && feed.videos.isEmpty() -> item {
-                    Box(Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) { androidx.compose.material3.CircularProgressIndicator() }
-                }
-                feed.error != null && feed.videos.isEmpty() -> item {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(feed.error.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        OutlinedButton(onClick = discovery::refresh) { Text("Try again") }
-                    }
-                }
-                recommendations.isEmpty() -> item {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            if (feed.videos.isEmpty()) "No channel uploads yet. Subscribe to channels to see their latest public videos here."
-                            else "Your feed filters hid these uploads. Adjust them in Settings to see more.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        OutlinedButton(onClick = onOpenChannels) { Text("Manage channels") }
-                    }
-                }
-                else -> items(recommendations, key = { "feed-" + it.videoId }) { video ->
-                    VideoRow(
-                        VideoEntity(
-                            id = video.videoId,
-                            title = video.title?.takeIf { it.isNotBlank() } ?: "Untitled video",
-                            channelId = video.channelId,
-                            thumbnailUrl = video.thumbnailUrl,
-                            durationSeconds = video.durationSeconds,
-                            source = "YOUTUBE"
-                        ),
-                        onOpenVideo
-                    )
-                }
-            }
-            item {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text("Recently watched", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                        Text("Pick up where you left off", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    OutlinedButton(onClick = onOpenSearch, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) { Text("Find videos") }
-                }
-            }
-            if (recent.isEmpty()) {
-                item { Text("No watch history yet. Search for something to watch or import a Takeout archive.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            } else {
-                items(recent, key = { it.id }) { VideoRow(it, onOpenVideo) }
-            }
-            item {
-                OutlinedButton(onClick = onOpenImport, modifier = Modifier.fillMaxWidth()) {
-                    Text("Import another archive")
-                    Spacer(Modifier.weight(1f))
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Button(onClick = onOpenSearch, modifier = Modifier.weight(1f)) { Text("Explore videos") }
+                OutlinedButton(onClick = onOpenImport) {
+                    Text("Import library")
+                    Spacer(Modifier.padding(start = 2.dp))
                     Icon(Icons.Default.ArrowForward, contentDescription = null)
+                }
+                IconButton(onClick = discovery::refresh) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Refresh feed")
                 }
             }
         }
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text(feed.discoveryContext ?: "Explore something new", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                    Text("A discovery lane shaped by your recent viewing", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("From your subscriptions", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                    Text("Recent public uploads from channels you follow", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                androidx.compose.material3.IconButton(onClick = discovery::refresh) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Refresh discovery")
-                }
+                IconButton(onClick = discovery::refresh) { Icon(Icons.Default.Refresh, contentDescription = "Refresh subscriptions") }
             }
         }
         when {
-            feed.discoveryLoading && feed.discoveredVideos.isEmpty() -> item {
-                Box(Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) {
-                    androidx.compose.material3.CircularProgressIndicator()
-                }
+            feed.loading && subscriptions.isEmpty() -> item {
+                Box(Modifier.fillMaxWidth().padding(vertical = 22.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             }
-            feed.discoveredVideos.isEmpty() -> item {
+            feed.error != null && subscriptions.isEmpty() -> item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(feed.discoveryError ?: "Search for a topic to start building your discovery feed.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    OutlinedButton(onClick = onOpenSearch) { Text("Explore topics") }
+                    Text(feed.error.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    OutlinedButton(onClick = discovery::refresh) { Text("Try again") }
                 }
             }
-            else -> items(
-                app.frame.video.domain.filterRecommendations(
-                    feed.discoveredVideos.filterNot { candidate -> feed.videos.any { it.videoId == candidate.videoId } },
-                    hideShorts, mutedKeywords, maxPerChannel
-                ).take(12),
-                key = { "discover-" + it.videoId }
-            ) { video ->
+            subscriptions.isEmpty() -> item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                ) {
+                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Your subscriptions will appear here", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text("Follow channels to see their latest public uploads in this feed. You can also start watching without importing anything.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        OutlinedButton(onClick = onOpenChannels) { Text("Browse subscriptions") }
+                    }
+                }
+            }
+            else -> items(subscriptions, key = { "sub-" + it.videoId }) { video ->
                 VideoRow(
                     VideoEntity(
                         id = video.videoId,
@@ -210,13 +137,60 @@ fun HomeScreen(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun LibraryStat(value: String, label: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(feed.discoveryContext ?: "Picked for you", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                    Text("Discovery that works before you import a library", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                IconButton(onClick = discovery::refresh) { Icon(Icons.Default.Refresh, contentDescription = "Refresh discovery") }
+            }
+        }
+        when {
+            feed.discoveryLoading && discoveryVideos.isEmpty() -> item {
+                Box(Modifier.fillMaxWidth().padding(vertical = 22.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            }
+            discoveryVideos.isEmpty() -> item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        feed.discoveryError ?: "We couldn't find videos for this feed yet. Try searching for a topic.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedButton(onClick = onOpenSearch) { Text("Search videos") }
+                    if (feed.discoveryError != null) OutlinedButton(onClick = discovery::refresh) { Text("Try again") }
+                }
+            }
+            else -> items(discoveryVideos, key = { "discover-" + it.videoId }) { video ->
+                VideoRow(
+                    VideoEntity(
+                        id = video.videoId,
+                        title = video.title?.takeIf { it.isNotBlank() } ?: "Untitled video",
+                        channelId = video.channelId,
+                        thumbnailUrl = video.thumbnailUrl,
+                        durationSeconds = video.durationSeconds,
+                        source = "YOUTUBE"
+                    ),
+                    onOpenVideo
+                )
+            }
+        }
+        if (recent.isNotEmpty()) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Continue watching", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                    Text("Your recent watch history stays on this device", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            items(recent, key = { "recent-" + it.id }) { VideoRow(it, onOpenVideo) }
+        }
+        item {
+            Text(
+                "${counts.videos} saved videos · ${counts.channels} subscriptions · Your library stays on this device",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
     }
 }
