@@ -74,12 +74,14 @@ fun LibraryScreen(
                 FilterChip(selected = section == item, onClick = { section = item }, label = { Text(item.label) })
             }
         }
-        when (section) {
-            LibrarySection.HISTORY -> HistoryScreen(vm, onOpenVideo, onImport)
-            LibrarySection.PLAYLISTS -> PlaylistsScreen(vm, onOpenPlaylist, onImport)
-            LibrarySection.LIKED -> LikedScreen(vm, onOpenVideo, onImport)
-            LibrarySection.DOWNLOADS -> DownloadsScreen(downloads, onPlayDownload)
-            LibrarySection.CHANNELS -> ChannelsScreen(vm, onImport, onOpenChannel)
+        Box(Modifier.weight(1f)) {
+            when (section) {
+                LibrarySection.HISTORY -> HistoryScreen(vm, onOpenVideo, onImport)
+                LibrarySection.PLAYLISTS -> PlaylistsScreen(vm, onOpenPlaylist, onImport)
+                LibrarySection.LIKED -> LikedScreen(vm, onOpenVideo, onImport)
+                LibrarySection.DOWNLOADS -> DownloadsScreen(downloads, onPlayDownload)
+                LibrarySection.CHANNELS -> ChannelsScreen(vm, onImport, onOpenChannel)
+            }
         }
     }
 }
