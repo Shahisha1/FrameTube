@@ -105,14 +105,15 @@ fun FrameApp(
     val backStack by nav.currentBackStackEntryAsState()
     val destination = backStack?.destination
     val showNavigation = items.any { destination?.hierarchy?.any { d -> d.route == it.route } == true }
-        val openVideo = { id: String -> nav.navigate(Routes.details(id)) }
+    val isShortsDestination = destination?.hierarchy?.any { it.route == Routes.SHORTS } == true
+    val openVideo = { id: String -> nav.navigate(Routes.details(id)) }
     val openImport = { nav.navigate(Routes.IMPORT) }
     val openSearch = { nav.navigate(Routes.SEARCH) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
+            if (!isShortsDestination) TopAppBar(
                 title = {
                     Column {
                         Text("FrameTube", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
@@ -128,7 +129,7 @@ fun FrameApp(
             )
         },
         bottomBar = {
-            if (showNavigation) NavigationBar(
+            if (showNavigation && !isShortsDestination) NavigationBar(
                 modifier = Modifier.height(64.dp),
                 containerColor = MaterialTheme.colorScheme.surface,
                 contentColor = MaterialTheme.colorScheme.onSurface,
@@ -171,7 +172,20 @@ fun FrameApp(
                         maxPerChannel = maxPerChannel
                     )
                 }
-                composable(Routes.SHORTS) { ShortsScreen(discovery = discovery, onOpenVideo = openVideo) }
+                composable(Routes.SHORTS) {
+                    ShortsScreen(
+                        discovery = discovery,
+                        providers = container.providerManager,
+                        library = container.library,
+                        onOpenVideo = openVideo,
+                        onClose = {
+                            nav.navigate(Routes.HOME) {
+                                popUpTo(nav.graph.findStartDestination().id) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        }
+                    )
+                }
                 composable(Routes.SUBSCRIPTIONS) { ChannelsScreen(library, onImport = { openImport() }, onOpenChannel = { nav.navigate(Routes.channel(it)) }) }
                 composable(Routes.LIBRARY) {
                     LibraryScreen(
