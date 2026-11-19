@@ -1,6 +1,7 @@
 package app.frame.video.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -25,11 +26,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.frame.video.data.local.VideoEntity
 import app.frame.video.ui.components.VideoRow
 import app.frame.video.ui.viewmodel.LibraryViewModel
 import app.frame.video.ui.viewmodel.DiscoveryViewModel
@@ -41,97 +44,57 @@ fun HomeScreen(
     onOpenImport: () -> Unit,
     onOpenChannels: () -> Unit,
     onOpenSearch: () -> Unit,
-    onOpenVideo: (String) -> Unit
+    onOpenVideo: (String) -> Unit,
+    hideShorts: Boolean = false,
+    mutedKeywords: String = "",
+    maxPerChannel: Int = 3
 ) {
     val counts by vm.counts.collectAsStateWithLifecycle()
     val recent by vm.recent.collectAsStateWithLifecycle()
     val feed by discovery.state.collectAsStateWithLifecycle()
+    val recommendations = remember(feed.videos, hideShorts, mutedKeywords, maxPerChannel) {
+        app.frame.video.domain.filterRecommendations(feed.videos, hideShorts, mutedKeywords, maxPerChannel)
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 28.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(22.dp)
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text(if (counts.isEmpty) "A HOME FOR YOUR WATCH HISTORY" else "WELCOME BACK", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                Text(if (counts.isEmpty) "Your videos, your space." else "Your library", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
                 Text(
-                    if (counts.isEmpty) "A HOME FOR YOUR WATCH HISTORY" else "WELCOME BACK",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    if (counts.isEmpty) "Your videos,\nyour space." else "Your library",
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold,
-                    lineHeight = MaterialTheme.typography.headlineLarge.lineHeight
-                )
-                Text(
-                    if (counts.isEmpty) "Bring your YouTube archive into Frame. Keep your history and playlists organised on this device."
-                    else "A quieter place to pick up where you left off.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    if (counts.isEmpty) "Bring your saved videos and subscriptions into Frame. Your library stays on this device."
+                    else "Pick up where you left off, or find something new from your channels.",
+                    style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
-
         if (counts.isEmpty) {
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(22.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(14.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-                        ) {
-                            Icon(
-                                Icons.Default.PlayArrow,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(12.dp)
-                            )
+                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+                    Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.padding(12.dp))
                         }
-                        Text("Start with your Takeout", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                        Text(
-                            "Import your Google Takeout ZIP to bring in subscriptions, playlists and watch history. Frame reviews the archive before saving anything.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Text("Make Frame yours", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                        Text("Import your Google Takeout archive to restore subscriptions, playlists and watch history. Or search for a video to start fresh.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Button(onClick = onOpenImport, modifier = Modifier.fillMaxWidth()) {
-                            Text("Import Google Takeout")
+                            Text("Import library")
                             Spacer(Modifier.weight(1f))
                             Icon(Icons.Default.ArrowForward, contentDescription = null)
                         }
-                        OutlinedButton(onClick = onOpenSearch, modifier = Modifier.fillMaxWidth()) {
-                            Text("Explore YouTube instead")
-                        }
+                        OutlinedButton(onClick = onOpenSearch, modifier = Modifier.fillMaxWidth()) { Text("Explore videos") }
                     }
                 }
             }
-            item {
-                Text(
-                    "PRIVATE BY DESIGN  ·  Your imported library stays on this device",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            item { Text("PRIVATE BY DESIGN  ·  Your imported library stays on this device", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         } else {
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp, horizontal = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
+                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+                    Row(Modifier.fillMaxWidth().padding(vertical = 18.dp, horizontal = 10.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                         LibraryStat(counts.videos.toString(), "VIDEOS")
                         LibraryStat(counts.channels.toString(), "CHANNELS")
                         LibraryStat(counts.playlists.toString(), "PLAYLISTS")
@@ -142,19 +105,15 @@ fun HomeScreen(
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text("From your channels", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                        Text("Latest public uploads from your subscriptions", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Recommended from your channels", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                        Text("Recent public uploads, shaped by your feed filters", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    androidx.compose.material3.IconButton(onClick = discovery::refresh) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh channel feed")
-                    }
+                    androidx.compose.material3.IconButton(onClick = discovery::refresh) { Icon(Icons.Default.Refresh, contentDescription = "Refresh recommendations") }
                 }
             }
             when {
                 feed.loading && feed.videos.isEmpty() -> item {
-                    androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) {
-                        androidx.compose.material3.CircularProgressIndicator()
-                    }
+                    Box(Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) { androidx.compose.material3.CircularProgressIndicator() }
                 }
                 feed.error != null && feed.videos.isEmpty() -> item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -162,19 +121,24 @@ fun HomeScreen(
                         OutlinedButton(onClick = discovery::refresh) { Text("Try again") }
                     }
                 }
-                feed.videos.isEmpty() -> item {
+                recommendations.isEmpty() -> item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("No channel feed yet. Import subscriptions or subscribe to channels to see their latest public uploads here.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        OutlinedButton(onClick = onOpenChannels) { Text("Open channels") }
+                        Text(
+                            if (feed.videos.isEmpty()) "No channel uploads yet. Subscribe to channels to see their latest public videos here."
+                            else "Your feed filters hid these uploads. Adjust them in Settings to see more.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        OutlinedButton(onClick = onOpenChannels) { Text("Manage channels") }
                     }
                 }
-                else -> items(feed.videos, key = { "feed-" + it.videoId }) { video ->
+                else -> items(recommendations, key = { "feed-" + it.videoId }) { video ->
                     VideoRow(
-                        app.frame.video.data.local.VideoEntity(
+                        VideoEntity(
                             id = video.videoId,
-                            title = video.title ?: "YouTube video",
+                            title = video.title?.takeIf { it.isNotBlank() } ?: "Untitled video",
                             channelId = video.channelId,
                             thumbnailUrl = video.thumbnailUrl,
+                            durationSeconds = video.durationSeconds,
                             source = "YOUTUBE"
                         ),
                         onOpenVideo
@@ -187,19 +151,11 @@ fun HomeScreen(
                         Text("Recently watched", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                         Text("Pick up where you left off", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    OutlinedButton(onClick = onOpenSearch, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
-                        Text("Find videos")
-                    }
+                    OutlinedButton(onClick = onOpenSearch, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) { Text("Find videos") }
                 }
             }
             if (recent.isEmpty()) {
-                item {
-                    Text(
-                        "No watch history imported yet. Search for something to watch or import another Takeout archive.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                item { Text("No watch history yet. Search for something to watch or import a Takeout archive.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             } else {
                 items(recent, key = { it.id }) { VideoRow(it, onOpenVideo) }
             }

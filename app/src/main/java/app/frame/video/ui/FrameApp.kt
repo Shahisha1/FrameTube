@@ -1,7 +1,11 @@
 package app.frame.video.ui
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.weight
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
@@ -17,6 +21,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -26,7 +32,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -38,6 +46,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import app.frame.video.AppContainer
+import app.frame.video.core.datastore.FramePreferences
 import app.frame.video.core.datastore.PipedConfig
 import app.frame.video.ui.navigation.Routes
 import app.frame.video.ui.screens.ChannelsScreen
@@ -80,6 +89,11 @@ fun FrameApp(
     val discovery: DiscoveryViewModel = viewModel(factory = viewModelFactory { initializer { DiscoveryViewModel(container.library, container.channelProvider) } })
     val importVm: ImportViewModel = viewModel(factory = viewModelFactory { initializer { ImportViewModel(container.importer, container.contentResolver, container.metadataEnrichmentScheduler) } })
     val piped by container.preferences.pipedConfig.collectAsStateWithLifecycle(initialValue = PipedConfig(false, ""))
+    val sponsorBlockEnabled by container.preferences.sponsorBlockEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val sponsorBlockCategories by container.preferences.sponsorBlockCategories.collectAsStateWithLifecycle(initialValue = FramePreferences.DEFAULT_SPONSORBLOCK_CATEGORIES)
+    val hideShorts by container.preferences.hideShorts.collectAsStateWithLifecycle(initialValue = false)
+    val mutedKeywords by container.preferences.mutedKeywords.collectAsStateWithLifecycle(initialValue = "")
+    val maxPerChannel by container.preferences.maxPerChannel.collectAsStateWithLifecycle(initialValue = 3)
 
     val items = listOf(
         NavItem(Routes.HOME, "Home", Icons.Default.Home),
@@ -90,7 +104,8 @@ fun FrameApp(
     )
     val backStack by nav.currentBackStackEntryAsState()
     val destination = backStack?.destination
-    val showBottomBar = items.any { destination?.hierarchy?.any { d -> d.route == it.route } == true }
+    val showNavigation = items.any { destination?.hierarchy?.any { d -> d.route == it.route } == true }
+    val wideLayout = LocalConfiguration.current.screenWidthDp >= 600
     val openVideo = { id: String -> nav.navigate(Routes.details(id)) }
     val openImport = { nav.navigate(Routes.IMPORT) }
     val openSearch = { nav.navigate(Routes.SEARCH) }
@@ -102,26 +117,23 @@ fun FrameApp(
                 title = {
                     Column {
                         Text("FRAME", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
-                        Text("YOUR VIDEO LIBRARY", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("YOUR VIDEO SPACE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 },
                 actions = {
-                    IconButton(onClick = { nav.navigate(Routes.DOWNLOADS) }) {
-                        Icon(Icons.Default.Download, contentDescription = "Downloads")
-                    }
+                    IconButton(onClick = { nav.navigate(Routes.DOWNLOADS) }) { Icon(Icons.Default.Download, contentDescription = "Downloads") }
                     IconButton(onClick = openSearch) { Icon(Icons.Default.Search, contentDescription = "Search videos") }
                     IconButton(onClick = { nav.navigate(Routes.SETTINGS) }) { Icon(Icons.Default.Settings, contentDescription = "Settings") }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background, titleContentColor = MaterialTheme.colorScheme.onSurface)
             )
         },
         bottomBar = {
-            if (showBottomBar) NavigationBar(
+            if (showNavigation && !wideLayout) NavigationBar(
+                modifier = Modifier.height(64.dp),
                 containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.onSurface
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                tonalElevation = 0.dp
             ) {
                 items.forEach { item ->
                     NavigationBarItem(
@@ -133,62 +145,97 @@ fun FrameApp(
                                 restoreState = true
                             }
                         },
-                        icon = { Icon(item.icon, contentDescription = null) },
-                        label = { Text(item.label) }
+                        icon = { Icon(item.icon, contentDescription = item.label) },
+                        label = null,
+                        alwaysShowLabel = false
                     )
                 }
             }
         }
     ) { padding ->
-        NavHost(navController = nav, startDestination = Routes.HOME, modifier = Modifier.padding(padding)) {
-            composable(Routes.HOME) { HomeScreen(library, discovery, onOpenImport = { openImport() }, onOpenChannels = { nav.navigate(Routes.SUBSCRIPTIONS) }, onOpenSearch = { openSearch() }, onOpenVideo = openVideo) }
-            composable(Routes.SUBSCRIPTIONS) { ChannelsScreen(library, onImport = { openImport() }, onOpenChannel = { nav.navigate(Routes.channel(it)) }) }
-            composable(Routes.PLAYLISTS) { PlaylistsScreen(library, onOpenPlaylist = { nav.navigate(Routes.playlist(it)) }, onImport = { openImport() }) }
-            composable(Routes.CHANNEL) { entry ->
-                val id = entry.arguments?.getString("channelId").orEmpty()
-                val channelVm: ChannelDetailViewModel = viewModel(
-                    key = "channel-$id",
-                    factory = viewModelFactory { initializer { ChannelDetailViewModel(id, container.library, container.channelProvider) } }
-                )
-                ChannelDetailScreen(channelVm, openVideo)
+        Row(Modifier.fillMaxSize().padding(padding)) {
+            if (showNavigation && wideLayout) NavigationRail(containerColor = MaterialTheme.colorScheme.surface) {
+                items.forEach { item ->
+                    NavigationRailItem(
+                        selected = destination?.hierarchy?.any { it.route == item.route } == true,
+                        onClick = {
+                            nav.navigate(item.route) {
+                                popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        icon = { Icon(item.icon, contentDescription = item.label) },
+                        label = { Text(item.label) },
+                        alwaysShowLabel = true
+                    )
+                }
             }
-            composable(Routes.PLAYLIST) { entry ->
-                PlaylistDetailScreen(entry.arguments?.getString("playlistId").orEmpty(), library, openVideo) { nav.popBackStack() }
-            }
-            composable(Routes.HISTORY) { HistoryScreen(library, openVideo, onImport = { openImport() }) }
-            composable(Routes.LIKED) { LikedScreen(library, openVideo, onImport = { openImport() }) }
-            composable(Routes.SEARCH) { SearchScreen(search, openVideo) { url -> nav.navigate(Routes.channel(url)) } }
-            composable(Routes.DOWNLOADS) {
-                DownloadsScreen(container.downloads) { id -> nav.navigate(Routes.localPlayer(id)) }
-            }
-            composable(Routes.SETTINGS) {
-                SettingsScreen(
-                    darkTheme = darkTheme,
-                    onToggleTheme = onToggleTheme,
-                    dynamicColor = dynamicColor,
-                    onToggleDynamicColor = onToggleDynamicColor,
-                    piped = piped,
-                    onSetPiped = { enabled, url -> scope.launch { container.preferences.setPiped(enabled, url.trim()) } },
-                    onImport = { openImport() },
-                    onDeleteData = { library.deleteAll { } }
-                )
-            }
-            composable(Routes.IMPORT) {
-                ImportScreen(importVm, onOpenLibrary = { nav.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } } })
-            }
-            composable(Routes.DETAILS) { entry ->
-                val id = entry.arguments?.getString("videoId").orEmpty()
-                DetailsScreen(id, container.library, container.providerManager.metadataProvider("newpipe")!!, onPlay = { nav.navigate(Routes.player(id)) })
-            }
-            composable(Routes.PLAYER) { entry ->
-                val id = entry.arguments?.getString("videoId").orEmpty()
-                val vm: PlayerViewModel = viewModel(key = "player-$id", factory = viewModelFactory { initializer { PlayerViewModel(id, container.providerManager, container.library) } })
-                PlayerScreen(id, vm, onBack = { nav.popBackStack() }, onOpenSettings = { nav.navigate(Routes.SETTINGS) })
-            }
-            composable(Routes.LOCAL_PLAYER) { entry ->
-                val id = entry.arguments?.getString("downloadId")?.toLongOrNull()
-                if (id != null) LocalDownloadPlayerScreen(id, container.downloads) { nav.popBackStack() }
-                else Text("Invalid download")
+            NavHost(navController = nav, startDestination = Routes.HOME, modifier = Modifier.weight(1f)) {
+                composable(Routes.HOME) {
+                    HomeScreen(
+                        library, discovery,
+                        onOpenImport = { openImport() },
+                        onOpenChannels = { nav.navigate(Routes.SUBSCRIPTIONS) },
+                        onOpenSearch = { openSearch() },
+                        onOpenVideo = openVideo,
+                        hideShorts = hideShorts,
+                        mutedKeywords = mutedKeywords,
+                        maxPerChannel = maxPerChannel
+                    )
+                }
+                composable(Routes.SUBSCRIPTIONS) { ChannelsScreen(library, onImport = { openImport() }, onOpenChannel = { nav.navigate(Routes.channel(it)) }) }
+                composable(Routes.PLAYLISTS) { PlaylistsScreen(library, onOpenPlaylist = { nav.navigate(Routes.playlist(it)) }, onImport = { openImport() }) }
+                composable(Routes.CHANNEL) { entry ->
+                    val id = entry.arguments?.getString("channelId").orEmpty()
+                    val channelVm: ChannelDetailViewModel = viewModel(
+                        key = "channel-$id",
+                        factory = viewModelFactory { initializer { ChannelDetailViewModel(id, container.library, container.channelProvider) } }
+                    )
+                    ChannelDetailScreen(channelVm, openVideo)
+                }
+                composable(Routes.PLAYLIST) { entry ->
+                    PlaylistDetailScreen(entry.arguments?.getString("playlistId").orEmpty(), library, openVideo) { nav.popBackStack() }
+                }
+                composable(Routes.HISTORY) { HistoryScreen(library, openVideo, onImport = { openImport() }) }
+                composable(Routes.LIKED) { LikedScreen(library, openVideo, onImport = { openImport() }) }
+                composable(Routes.SEARCH) { SearchScreen(search, openVideo) { url -> nav.navigate(Routes.channel(url)) } }
+                composable(Routes.DOWNLOADS) { DownloadsScreen(container.downloads) { id -> nav.navigate(Routes.localPlayer(id)) } }
+                composable(Routes.SETTINGS) {
+                    SettingsScreen(
+                        darkTheme = darkTheme,
+                        onToggleTheme = onToggleTheme,
+                        dynamicColor = dynamicColor,
+                        onToggleDynamicColor = onToggleDynamicColor,
+                        piped = piped,
+                        onSetPiped = { enabled, url -> scope.launch { container.preferences.setPiped(enabled, url.trim()) } },
+                        sponsorBlockEnabled = sponsorBlockEnabled,
+                        sponsorBlockCategories = sponsorBlockCategories,
+                        onSetSponsorBlock = { enabled, categories -> scope.launch { container.preferences.setSponsorBlock(enabled, categories) } },
+                        hideShorts = hideShorts,
+                        mutedKeywords = mutedKeywords,
+                        maxPerChannel = maxPerChannel,
+                        onSetFeedQuality = { hide, keywords, limit -> scope.launch { container.preferences.setFeedQuality(hide, keywords, limit) } },
+                        onImport = { openImport() },
+                        onDeleteData = { library.deleteAll { } }
+                    )
+                }
+                composable(Routes.IMPORT) {
+                    ImportScreen(importVm, onOpenLibrary = { nav.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } } })
+                }
+                composable(Routes.DETAILS) { entry ->
+                    val id = entry.arguments?.getString("videoId").orEmpty()
+                    DetailsScreen(id, container.library, container.providerManager.metadataProvider("newpipe")!!, onPlay = { nav.navigate(Routes.player(id)) })
+                }
+                composable(Routes.PLAYER) { entry ->
+                    val id = entry.arguments?.getString("videoId").orEmpty()
+                    val vm: PlayerViewModel = viewModel(key = "player-$id", factory = viewModelFactory { initializer { PlayerViewModel(id, container.providerManager, container.library) } })
+                    PlayerScreen(id, vm, container.preferences, onBack = { nav.popBackStack() }, onOpenSettings = { nav.navigate(Routes.SETTINGS) })
+                }
+                composable(Routes.LOCAL_PLAYER) { entry ->
+                    val id = entry.arguments?.getString("downloadId")?.toLongOrNull()
+                    if (id != null) LocalDownloadPlayerScreen(id, container.downloads) { nav.popBackStack() } else Text("Invalid download")
+                }
             }
         }
     }

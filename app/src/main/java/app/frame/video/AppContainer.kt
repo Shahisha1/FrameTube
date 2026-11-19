@@ -1,21 +1,21 @@
 package app.frame.video
 
 import android.app.Application
-import android.content.Context
 import android.content.ContentResolver
+import android.content.Context
 import app.frame.video.core.datastore.FramePreferences
-import app.frame.video.core.provider.ProviderManager
 import app.frame.video.core.provider.FallbackPlaybackProvider
+import app.frame.video.core.provider.ProviderManager
 import app.frame.video.core.provider.newpipe.NewPipePlaybackProvider
-import app.frame.video.data.remote.newpipe.NewPipeVideoProvider
-import app.frame.video.data.remote.newpipe.NewPipeChannelProvider
-import app.frame.video.data.worker.MetadataEnrichmentScheduler
 import app.frame.video.core.provider.piped.PipedApi
 import app.frame.video.core.provider.piped.PipedPlaybackProvider
 import app.frame.video.data.download.DownloadStore
 import app.frame.video.data.importer.TakeoutImporter
 import app.frame.video.data.local.FrameDatabaseProvider
+import app.frame.video.data.remote.newpipe.NewPipeChannelProvider
+import app.frame.video.data.remote.newpipe.NewPipeVideoProvider
 import app.frame.video.data.repository.RoomLibraryRepository
+import app.frame.video.data.worker.MetadataEnrichmentScheduler
 import app.frame.video.domain.LibraryRepository
 import kotlinx.coroutines.flow.first
 
@@ -47,8 +47,4 @@ class AppContainer(context: Context) {
 
 class FrameApplication : Application() {
     val container: AppContainer by lazy { AppContainer(this) }
-    override fun onCreate() {
-        super.onCreate()
-        container.metadataEnrichmentScheduler.schedule()
-    }
 }

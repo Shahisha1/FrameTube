@@ -31,7 +31,9 @@ class NewPipeChannelProvider : ChannelProvider {
                 title = item.name,
                 channelId = info.id,
                 thumbnailUrl = item.thumbnails.firstOrNull()?.url,
-                availability = MetadataAvailability.AVAILABLE
+                availability = MetadataAvailability.AVAILABLE,
+                durationSeconds = item.duration.takeIf { it > 0L },
+                isShortFormContent = item.isShortFormContent
             )
         }.distinctBy { it.videoId }
         return ChannelPageData(profile, videos)

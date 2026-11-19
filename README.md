@@ -7,13 +7,15 @@ FrameTube is a native Android video client built with Kotlin, Jetpack Compose, R
 - Search public videos, channels and playlists with filters, suggestions, recent searches and next-page loading.
 - Open video details and play supported streams with Media3.
 - Like videos locally, resume playback, seek by 10 seconds and change playback speed.
+- Skip community-submitted SponsorBlock segments with configurable category controls.
+- Filter the subscribed-channel feed by muted title terms, short-form duration and per-channel repetition limits.
 - Import supported Google Takeout archives after reviewing a preview.
 - Browse imported channels, open channel pages, save subscriptions locally, and see public uploads from subscribed channels on Home.
 - Create, edit and delete local playlists; add or remove videos; browse imported playlists, watch history and liked videos.
 - Download direct HTTPS media files from sources that permit saving. YouTube pages and extracted YouTube streams are blocked.
 - Optional playback fallback through a Piped instance chosen by the user.
 
-Channel subscriptions and the personal library are stored on the device. They are not synced to a Google account. The subscription feed uses public channel uploads, not a personalized Google recommendation profile.
+Channel subscriptions and the personal library are stored on the device. They are not synced to a Google account. The home recommendations are a locally filtered view of recent public uploads from subscribed channels, not a personalized Google recommendation profile. When SponsorBlock is enabled, FrameTube sends the current video ID to the public SponsorBlock API to retrieve segment times; no account identity is sent.
 
 ## Build
 
@@ -51,4 +53,5 @@ No release tag is created by this repository setup alone.
 See docs/ARCHITECTURE.md for the presentation, domain, data, extraction, and playback boundaries.
 See docs/RELEASING.md for signed release setup.
 See docs/OFFLINE_DOWNLOADS.md for offline download limits.
+See docs/FEATURES.md for SponsorBlock, feed filtering and UI behavior.
 See THIRD_PARTY_NOTICES.md for dependency and project notices.
