@@ -1,6 +1,7 @@
 package app.frame.video.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,11 +11,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Subscriptions
 import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,6 +32,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -87,6 +94,7 @@ fun FrameApp(
     onToggleDynamicColor: (Boolean) -> Unit
 ) {
     val nav = rememberNavController()
+    var topMenuExpanded by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val library: LibraryViewModel = viewModel(factory = viewModelFactory { initializer { LibraryViewModel(container.library) } })
     val search: SearchViewModel = viewModel(factory = viewModelFactory { initializer { SearchViewModel(container.library, container.providerManager.metadataProvider("newpipe")!!) } })
@@ -134,8 +142,23 @@ fun FrameApp(
                 },
                 actions = {
                     IconButton(onClick = openSearch) { Icon(Icons.Default.Search, contentDescription = "Search videos") }
-                    IconButton(onClick = { nav.navigate(Routes.DOWNLOADS) }) { Icon(Icons.Default.Download, contentDescription = "Downloads") }
-                    IconButton(onClick = { nav.navigate(Routes.SETTINGS) }) { Icon(Icons.Default.Settings, contentDescription = "Settings") }
+                    Box {
+                        IconButton(onClick = { topMenuExpanded = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                        }
+                        DropdownMenu(expanded = topMenuExpanded, onDismissRequest = { topMenuExpanded = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Downloads") },
+                                leadingIcon = { Icon(Icons.Default.Download, contentDescription = null) },
+                                onClick = { topMenuExpanded = false; nav.navigate(Routes.DOWNLOADS) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Settings") },
+                                leadingIcon = { Icon(Icons.Default.Settings, contentDescription = null) },
+                                onClick = { topMenuExpanded = false; nav.navigate(Routes.SETTINGS) }
+                            )
+                        }
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
