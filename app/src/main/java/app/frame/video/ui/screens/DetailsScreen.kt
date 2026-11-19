@@ -9,13 +9,12 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
@@ -29,6 +28,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -38,9 +39,18 @@ import app.frame.video.domain.provider.VideoProvider
 import app.frame.video.data.local.VideoEntity
 import app.frame.video.domain.LibraryRepository
 import app.frame.video.ui.components.VideoThumbnail
+import coil.compose.AsyncImage
 import app.frame.video.ui.components.openOnYouTube
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+
+@Composable
+private fun compactVideoCount(value: Long): String = when {
+    value >= 1_000_000_000L -> "%.1fB".format(value / 1_000_000_000.0)
+    value >= 1_000_000L -> "%.1fM".format(value / 1_000_000.0)
+    value >= 1_000L -> "%.1fK".format(value / 1_000.0)
+    else -> value.toString()
+}
 
 @Composable
 fun DetailsScreen(
@@ -70,24 +80,36 @@ fun DetailsScreen(
     ) {
         Text("VIDEO DETAILS", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         if (!thumbnail.isNullOrBlank()) VideoThumbnail(thumbnail, Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(14.dp)))
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(title, style = MaterialTheme.typography.headlineSmall)
-            Text("YouTube video · $videoId", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Card(
-            modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-        ) {
-            Text(
-                when {
-                    online == null -> "Loading video details…"
-                    online?.availability == MetadataAvailability.AVAILABLE -> "Details loaded through NewPipe Extractor. Your saved library entry stays on this device."
-                    idOnly -> "This entry came from Takeout with no title. FrameTube could not load live details, but the saved entry remains in your library."
-                    else -> "This entry came from Takeout. Live details could not be loaded; the saved entry remains in your library."
-                },
-                modifier = Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium
-            )
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+            if (!online?.channelName.isNullOrBlank()) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (!online?.channelAvatarUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = online?.channelAvatarUrl,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.size(40.dp).clip(CircleShape)
+                        )
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(online?.channelName.orEmpty(), style = MaterialTheme.typography.titleSmall)
+                        val details = listOfNotNull(
+                            online?.viewCount?.takeIf { it >= 0L }?.let { compactVideoCount(it) + " views" },
+                            online?.textualUploadDate?.takeIf { it.isNotBlank() }
+                        ).joinToString(" · ")
+                        if (details.isNotBlank()) Text(details, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+            if (online?.availability != null && online?.availability != MetadataAvailability.AVAILABLE) {
+                Text(
+                    if (idOnly) "This saved entry has no title and live details could not be loaded."
+                    else "Live video details are temporarily unavailable. Your saved entry remains in your library.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Button(onClick = { scope.launch { saveToLibrary(); onPlay() } }, modifier = Modifier.weight(1f)) { Text("Play video") }
