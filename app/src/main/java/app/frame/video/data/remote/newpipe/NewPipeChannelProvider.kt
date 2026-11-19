@@ -51,7 +51,12 @@ class NewPipeChannelProvider : ChannelProvider {
             thumbnailUrl = thumbnails.firstOrNull()?.url,
             availability = MetadataAvailability.AVAILABLE,
             durationSeconds = duration.takeIf { it > 0L },
-            isShortFormContent = forceShort || isShortFormContent
+            isShortFormContent = forceShort || isShortFormContent,
+            channelName = uploaderName.takeIf { it.isNotBlank() },
+            channelAvatarUrl = uploaderAvatars.firstOrNull()?.url,
+            viewCount = viewCount.takeIf { it >= 0L },
+            textualUploadDate = textualUploadDate?.takeIf { it.isNotBlank() },
+            isUploaderVerified = isUploaderVerified
         )
     }
 
