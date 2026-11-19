@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -74,7 +75,8 @@ fun ShortsScreen(
     library: LibraryRepository,
     session: PlaybackSession,
     onOpenVideo: (String) -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    onOpenSearch: () -> Unit = {}
 ) {
     val feed by discovery.state.collectAsStateWithLifecycle()
     val shorts = feed.shortsVideos
@@ -166,19 +168,26 @@ fun ShortsScreen(
             }
         }
 
-        IconButton(
-            onClick = { session.pause(); onClose() },
-            modifier = Modifier.align(Alignment.TopStart).padding(start = 10.dp, top = 10.dp)
-                .background(Color.Black.copy(alpha = 0.35f), MaterialTheme.shapes.small)
+        Row(
+            Modifier.align(Alignment.TopStart).padding(start = 8.dp, top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Icon(Icons.Default.Close, contentDescription = "Close Shorts", tint = Color.White)
+            IconButton(
+                onClick = { session.pause(); onClose() },
+                modifier = Modifier.background(Color.Black.copy(alpha = 0.34f), MaterialTheme.shapes.small)
+            ) {
+                Icon(Icons.Default.Close, contentDescription = "Close Shorts", tint = Color.White)
+            }
+            Text("Shorts", color = Color.White, style = MaterialTheme.typography.titleLarge)
         }
-        Text(
-            "SHORTS",
-            color = Color.White,
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.align(Alignment.TopCenter).padding(top = 20.dp)
-        )
+        IconButton(
+            onClick = onOpenSearch,
+            modifier = Modifier.align(Alignment.TopEnd).padding(end = 8.dp, top = 8.dp)
+                .background(Color.Black.copy(alpha = 0.34f), MaterialTheme.shapes.small)
+        ) {
+            Icon(Icons.Default.Search, contentDescription = "Search videos", tint = Color.White)
+        }
     }
 }
 
@@ -253,7 +262,7 @@ private fun ShortsActivePage(
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text(video.title.orEmpty(), color = Color.White, style = MaterialTheme.typography.titleMedium, maxLines = 3)
-            Text("Short · ${index + 1} of ${total}", color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.labelSmall)
+            Text("YouTube · Short ${index + 1} of ${total}", color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.labelSmall)
         }
 
         Column(

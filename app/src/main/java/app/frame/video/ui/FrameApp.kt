@@ -212,7 +212,8 @@ fun FrameApp(
                                 popUpTo(nav.graph.findStartDestination().id) { inclusive = false }
                                 launchSingleTop = true
                             }
-                        }
+                        },
+                        onOpenSearch = { openSearch() }
                     )
                 }
                 composable(Routes.SUBSCRIPTIONS) { SubscriptionsScreen(library, discovery, onImport = { openImport() }, onOpenChannel = { nav.navigate(Routes.channel(it)) }, onOpenVideo = openVideo) }
