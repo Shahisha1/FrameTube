@@ -94,12 +94,15 @@ fun HomeScreen(
     val counts by vm.counts.collectAsStateWithLifecycle()
     val recent by vm.recent.collectAsStateWithLifecycle()
     val feed by discovery.state.collectAsStateWithLifecycle()
-    var selectedTopic by remember { mutableStateOf("Home") }
+    var selectedTopic by remember { mutableStateOf("All") }
     val recommendations = remember(feed.discoveredVideos, feed.videos, hideShorts, mutedKeywords, maxPerChannel) {
         app.frame.video.domain.filterRecommendations(
             feed.discoveredVideos.filterNot { candidate -> feed.videos.any { it.videoId == candidate.videoId } },
             hideShorts, mutedKeywords, maxPerChannel
         ).take(24)
+    }
+    val subscribedUploads = remember(feed.videos, hideShorts, mutedKeywords, maxPerChannel) {
+        app.frame.video.domain.filterRecommendations(feed.videos, hideShorts, mutedKeywords, maxPerChannel).take(8)
     }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -178,6 +181,61 @@ fun HomeScreen(
                                     modifier = Modifier.padding(horizontal = 2.dp)
                                 )
                             }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (subscribedUploads.isNotEmpty()) {
+            item {
+                Row(
+                    Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 16.dp, bottom = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("From your subscriptions", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text("Recent uploads from channels you follow", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    TextButton(onClick = onOpenChannels) { Text("See all") }
+                }
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(subscribedUploads, key = { "subscribed-${it.videoId}" }) { video ->
+                        Column(
+                            Modifier.width(224.dp).clickable { onOpenVideo(video.videoId) },
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(
+                                Modifier.fillMaxWidth().aspectRatio(16f / 9f)
+                                    .clip(RoundedCornerShape(9.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                if (!video.thumbnailUrl.isNullOrBlank()) {
+                                    AsyncImage(
+                                        model = video.thumbnailUrl,
+                                        contentDescription = video.title,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                            }
+                            Text(
+                                video.title?.takeIf { it.isNotBlank() } ?: "New upload",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                video.channelName ?: "Subscribed channel",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
                 }
