@@ -8,6 +8,7 @@ import app.frame.video.core.provider.ProviderManager
 import app.frame.video.core.provider.FallbackPlaybackProvider
 import app.frame.video.core.provider.newpipe.NewPipePlaybackProvider
 import app.frame.video.data.remote.newpipe.NewPipeVideoProvider
+import app.frame.video.data.remote.newpipe.NewPipeChannelProvider
 import app.frame.video.data.worker.MetadataEnrichmentScheduler
 import app.frame.video.core.provider.piped.PipedApi
 import app.frame.video.core.provider.piped.PipedPlaybackProvider
@@ -27,6 +28,7 @@ class AppContainer(context: Context) {
     val downloads by lazy { DownloadStore(appContext) }
     val library: LibraryRepository by lazy { RoomLibraryRepository(database.libraryDao()) }
     val importer by lazy { TakeoutImporter(database) }
+    val channelProvider by lazy { NewPipeChannelProvider() }
     val metadataEnrichmentScheduler by lazy { MetadataEnrichmentScheduler(appContext) }
     val providerManager by lazy {
         ProviderManager(

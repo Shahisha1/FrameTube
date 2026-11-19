@@ -115,6 +115,48 @@ interface LibraryDao {
     @Query("SELECT v.* FROM videos v JOIN (SELECT videoId, MAX(watchedAt) AS lastAt FROM watch_history GROUP BY videoId) h ON h.videoId = v.id ORDER BY h.lastAt DESC LIMIT :limit")
     fun observeRecentHistory(limit: Int): Flow<List<VideoEntity>>
 
+
+    // In-app likes and playback progress (M1/M2).
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertHistoryEntry(item: WatchHistoryEntity): Long
+
+    @Query("UPDATE watch_history SET positionSeconds = :seconds WHERE id = :id")
+    suspend fun updateHistoryPosition(id: Long, seconds: Long)
+
+    @Query("SELECT positionSeconds FROM watch_history WHERE videoId = :videoId ORDER BY watchedAt DESC, id DESC LIMIT 1")
+    suspend fun lastPositionSeconds(videoId: String): Long?
+
+    @Query("UPDATE videos SET title = :title, thumbnailUrl = COALESCE(thumbnailUrl, :thumbnailUrl), metadataUpdatedAt = :updatedAt WHERE id = :videoId AND title = id")
+    suspend fun fillPlaceholderMetadata(videoId: String, title: String, thumbnailUrl: String?, updatedAt: Long)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertLike(item: LikeEntity)
+
+    @Query("DELETE FROM likes WHERE videoId = :videoId")
+    suspend fun deleteLike(videoId: String)
+
+    @Query("SELECT EXISTS(SELECT 1 FROM likes WHERE videoId = :videoId)")
+    fun observeIsLiked(videoId: String): Flow<Boolean>
+
+    // Channel pages and local subscriptions (M3).
+    @Query("SELECT * FROM channels WHERE id = :channelId LIMIT 1")
+    suspend fun getChannel(channelId: String): ChannelEntity?
+
+    @Query("SELECT * FROM channels WHERE id = :channelId LIMIT 1")
+    fun observeChannel(channelId: String): Flow<ChannelEntity?>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertChannel(item: ChannelEntity)
+
+    @Query("SELECT EXISTS(SELECT 1 FROM subscriptions WHERE channelId = :channelId)")
+    fun observeIsSubscribed(channelId: String): Flow<Boolean>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertSubscription(item: SubscriptionEntity)
+
+    @Query("DELETE FROM subscriptions WHERE channelId = :channelId")
+    suspend fun deleteSubscription(channelId: String)
+
     @Query("SELECT COUNT(*) FROM videos") fun countVideos(): Flow<Int>
     @Query("SELECT COUNT(*) FROM channels") fun countChannels(): Flow<Int>
     @Query("SELECT COUNT(*) FROM playlists") fun countPlaylists(): Flow<Int>

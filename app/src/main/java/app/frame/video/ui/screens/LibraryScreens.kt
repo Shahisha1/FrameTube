@@ -40,13 +40,13 @@ import app.frame.video.ui.viewmodel.SearchViewModel
 import app.frame.video.domain.provider.VideoMetadataResult
 
 @Composable
-fun ChannelsScreen(vm: LibraryViewModel, onImport: () -> Unit) {
+fun ChannelsScreen(vm: LibraryViewModel, onImport: () -> Unit, onOpenChannel: (String) -> Unit) {
     val items = vm.channels.collectAsLazyPagingItems()
     Column(Modifier.fillMaxSize()) {
         LibraryHeading("YOUR NETWORK", "Channels", "Channels from your saved archive.")
         Box(Modifier.weight(1f)) {
             PagedList(items, key = { it.id }, emptyTitle = "No channels yet", emptyHint = "Subscriptions from your Takeout appear here.", actionLabel = "Import Takeout", onAction = onImport) {
-                ListItem(headlineContent = { Text(it.title) }, supportingContent = { Text("Channel ID ${it.id}") }, leadingContent = { Icon(Icons.Default.AccountCircle, null) })
+                ListItem(headlineContent = { Text(it.title) }, supportingContent = { Text("Channel ID ${it.id}") }, leadingContent = { Icon(Icons.Default.AccountCircle, null) }, modifier = Modifier.clickable(onClickLabel = "Open channel") { onOpenChannel(it.id) })
             }
         }
     }

@@ -21,5 +21,17 @@ interface LibraryRepository {
     fun observeRecentHistory(limit: Int): Flow<List<VideoEntity>>
     fun observeCounts(): Flow<LibraryCounts>
     suspend fun getVideo(id: String): VideoEntity?
+    fun observeIsLiked(videoId: String): Flow<Boolean>
+    suspend fun setLiked(videoId: String, liked: Boolean)
+    suspend fun ensureVideo(videoId: String, title: String?, thumbnailUrl: String?)
+    suspend fun recordPlay(videoId: String, startSeconds: Long): Long
+    suspend fun updatePlayPosition(entryId: Long, seconds: Long)
+    suspend fun lastPositionSeconds(videoId: String): Long?
+
+    suspend fun getChannel(channelId: String): ChannelEntity?
+    fun observeChannel(channelId: String): Flow<ChannelEntity?>
+    fun observeIsSubscribed(channelId: String): Flow<Boolean>
+    suspend fun saveChannel(channel: ChannelEntity)
+    suspend fun setSubscribed(channelId: String, subscribed: Boolean)
     suspend fun deleteAll()
 }
