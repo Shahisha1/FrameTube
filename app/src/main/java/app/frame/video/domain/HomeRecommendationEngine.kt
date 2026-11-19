@@ -21,6 +21,7 @@ object HomeRecommendationEngine {
     )
 
     private val genericTokens = Regex("^[0-9]+$")
+    private val shortTechnicalTerms = setOf("pc", "ai", "vr", "tv", "ui", "ux", "os", "gpu", "cpu", "rpg", "fps", "api", "sql", "mac", "ios")
 
     /**
      * Returns up to [maxPersonalizedQueries] topic phrases, weighted toward
@@ -38,7 +39,7 @@ object HomeRecommendationEngine {
                 .replace(Regex("[^\\p{L}\\p{N}]+"), " ")
                 .trim()
                 .split(Regex("\\s+"))
-                .filter { it.length > 2 && it !in ignoredWords && !genericTokens.matches(it) }
+                .filter { (it.length > 2 || it in shortTechnicalTerms) && it !in ignoredWords && !genericTokens.matches(it) }
                 .take(12)
 
             if (tokens.size == 1) {
