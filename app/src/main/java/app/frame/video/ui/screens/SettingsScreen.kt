@@ -46,6 +46,8 @@ fun SettingsScreen(
     onToggleTheme: (Boolean) -> Unit,
     dynamicColor: Boolean,
     onToggleDynamicColor: (Boolean) -> Unit,
+    accentPalette: String,
+    onSetAccentPalette: (String) -> Unit,
     piped: PipedConfig,
     onSetPiped: (enabled: Boolean, url: String) -> Unit,
     sponsorBlockEnabled: Boolean,
@@ -82,6 +84,24 @@ fun SettingsScreen(
                 if (supportsDynamicColor) "Use colors from your device wallpaper." else "Available on Android 12 and newer.",
                 dynamicColor, enabled = supportsDynamicColor, onCheckedChange = onToggleDynamicColor
             )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Text("Accent palette", style = MaterialTheme.typography.titleSmall)
+            Text(
+                if (dynamicColor && supportsDynamicColor) "Turn off dynamic color to use a Frame palette."
+                else "Choose a subtle accent while keeping Frame's layout and identity.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("red" to "Frame red", "blue" to "Blue", "violet" to "Violet", "green" to "Green").forEach { (key, label) ->
+                    FilterChip(
+                        selected = accentPalette == key,
+                        onClick = { onSetAccentPalette(key) },
+                        label = { Text(label) },
+                        enabled = !(dynamicColor && supportsDynamicColor)
+                    )
+                }
+            }
         }
 
         SettingsSection("SponsorBlock", "Skip community-submitted segments during playback") {

@@ -93,6 +93,7 @@ fun FrameApp(
     val hideShorts by container.preferences.hideShorts.collectAsStateWithLifecycle(initialValue = false)
     val mutedKeywords by container.preferences.mutedKeywords.collectAsStateWithLifecycle(initialValue = "")
     val maxPerChannel by container.preferences.maxPerChannel.collectAsStateWithLifecycle(initialValue = 3)
+    val accentPalette by container.preferences.accentPalette.collectAsStateWithLifecycle(initialValue = "red")
 
     val items = listOf(
         NavItem(Routes.HOME, "Home", Icons.Default.Home),
@@ -206,6 +207,8 @@ fun FrameApp(
                         onToggleTheme = onToggleTheme,
                         dynamicColor = dynamicColor,
                         onToggleDynamicColor = onToggleDynamicColor,
+                        accentPalette = accentPalette,
+                        onSetAccentPalette = { palette -> scope.launch { container.preferences.setAccentPalette(palette) } },
                         piped = piped,
                         onSetPiped = { enabled, url -> scope.launch { container.preferences.setPiped(enabled, url.trim()) } },
                         sponsorBlockEnabled = sponsorBlockEnabled,

@@ -17,8 +17,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             val saved by container.preferences.darkMode.collectAsStateWithLifecycle(initialValue = null)
             val dynamicColor by container.preferences.dynamicColor.collectAsStateWithLifecycle(initialValue = false)
+            val accentPalette by container.preferences.accentPalette.collectAsStateWithLifecycle(initialValue = "red")
             val dark = saved ?: true
-            FrameTheme(darkTheme = dark, dynamicColor = dynamicColor) {
+            FrameTheme(darkTheme = dark, dynamicColor = dynamicColor, accentPalette = accentPalette) {
                 FrameApp(
                     container = container,
                     darkTheme = dark,

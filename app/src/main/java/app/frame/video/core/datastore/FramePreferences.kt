@@ -24,6 +24,7 @@ class FramePreferences(private val context: Context) {
     private val hideShortsKey = booleanPreferencesKey("feed_hide_shorts")
     private val mutedKeywordsKey = stringPreferencesKey("feed_muted_keywords")
     private val maxPerChannelKey = intPreferencesKey("feed_max_per_channel")
+    private val accentPaletteKey = stringPreferencesKey("accent_palette")
 
     val darkMode: Flow<Boolean?> = context.frameDataStore.data.map { it[darkModeKey] }
     val dynamicColor: Flow<Boolean> = context.frameDataStore.data.map { it[dynamicColorKey] ?: false }
@@ -37,6 +38,7 @@ class FramePreferences(private val context: Context) {
     val hideShorts: Flow<Boolean> = context.frameDataStore.data.map { it[hideShortsKey] ?: false }
     val mutedKeywords: Flow<String> = context.frameDataStore.data.map { it[mutedKeywordsKey].orEmpty() }
     val maxPerChannel: Flow<Int> = context.frameDataStore.data.map { (it[maxPerChannelKey] ?: 3).coerceIn(1, 10) }
+    val accentPalette: Flow<String> = context.frameDataStore.data.map { it[accentPaletteKey]?.takeIf { value -> value in ACCENT_PALETTES } ?: "red" }
 
     suspend fun setDarkMode(enabled: Boolean) {
         context.frameDataStore.edit { it[darkModeKey] = enabled }
@@ -68,7 +70,12 @@ class FramePreferences(private val context: Context) {
         }
     }
 
+    suspend fun setAccentPalette(palette: String) {
+        context.frameDataStore.edit { it[accentPaletteKey] = palette.takeIf { it in ACCENT_PALETTES } ?: "red" }
+    }
+
     companion object {
+        val ACCENT_PALETTES = setOf("red", "blue", "violet", "green")
         val SPONSORBLOCK_CATEGORIES = setOf(
             "sponsor", "selfpromo", "interaction", "intro", "outro",
             "preview", "music_offtopic", "filler"
