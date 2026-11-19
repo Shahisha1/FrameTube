@@ -61,7 +61,7 @@ import android.content.Intent
 
 private data class HomeFeedVideo(val video: VideoMetadataResult, val fromSubscriptions: Boolean)
 
-private val discoveryTopics = listOf("All", "Music", "Gaming", "Mixes", "Live", "Technology", "Learning", "Recently uploaded")
+private val discoveryTopics = listOf("Home", "Subs", "All", "Music", "Gaming", "Mixes", "Live", "Technology", "Learning", "Recently uploaded")
 
 @Composable
 fun HomeScreen(
@@ -81,7 +81,7 @@ fun HomeScreen(
     val counts by vm.counts.collectAsStateWithLifecycle()
     val recent by vm.recent.collectAsStateWithLifecycle()
     val feed by discovery.state.collectAsStateWithLifecycle()
-    var selectedTopic by remember { mutableStateOf("All") }
+    var selectedTopic by remember { mutableStateOf("Home") }
     val subscriptions = remember(feed.videos, hideShorts, mutedKeywords, maxPerChannel) {
         app.frame.video.domain.filterRecommendations(feed.videos, hideShorts, mutedKeywords, maxPerChannel)
     }
@@ -117,8 +117,11 @@ fun HomeScreen(
                         selected = selectedTopic == topic,
                         onClick = {
                             selectedTopic = topic
-                            if (topic != "All") onExploreTopic(topic.lowercase())
-                            else discovery.refresh()
+                            when (topic) {
+                                "Subs" -> onOpenChannels()
+                                "Home", "All" -> discovery.refresh()
+                                else -> onExploreTopic(topic.lowercase())
+                            }
                         },
                         label = { Text(topic, maxLines = 1) },
                         shape = RoundedCornerShape(8.dp),
