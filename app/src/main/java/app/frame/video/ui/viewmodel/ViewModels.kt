@@ -265,7 +265,10 @@ data class SubscriptionFeedUiState(
     val discoveredVideos: List<VideoMetadataResult> = emptyList(),
     val discoveryLoading: Boolean = false,
     val discoveryError: String? = null,
-    val discoveryContext: String? = null
+    val discoveryContext: String? = null,
+    val shortsVideos: List<VideoMetadataResult> = emptyList(),
+    val shortsLoading: Boolean = false,
+    val shortsError: String? = null
 )
 
 class DiscoveryViewModel(
@@ -347,34 +350,74 @@ class DiscoveryViewModel(
 
     private suspend fun loadFeed(channels: List<ChannelEntity>) {
         if (channels.isEmpty()) {
-            _state.value = _state.value.copy(loading = false, videos = emptyList(), error = null)
+            _state.value = _state.value.copy(
+                loading = false,
+                videos = emptyList(),
+                error = null,
+                shortsLoading = true
+            )
+            loadFallbackShorts()
             return
         }
         _state.value = _state.value.copy(loading = true, error = null)
         val gate = Semaphore(3)
-        val results = coroutineScope {
+        val pages = coroutineScope {
             channels.take(12).map { channel ->
                 async {
                     gate.withPermit {
                         val url = channel.channelUrl?.takeIf { it.isNotBlank() }
                             ?: "https://www.youtube.com/channel/" + channel.id
                         try {
-                            withTimeoutOrNull(20_000) { channelProvider.getChannelPage(url).videos }.orEmpty()
+                            withTimeoutOrNull(20_000) { channelProvider.getChannelPage(url) }
                         } catch (cancelled: CancellationException) {
                             throw cancelled
                         } catch (_: Exception) {
-                            emptyList()
+                            null
                         }
                     }
                 }
             }.awaitAll()
         }
-        val videos = results.flatten().distinctBy { it.videoId }.take(60)
+        val videos = pages.flatMap { it?.videos.orEmpty() }.distinctBy { it.videoId }.take(60)
+        val shorts = pages.flatMap { it?.shorts.orEmpty() }.distinctBy { it.videoId }.take(60)
         _state.value = _state.value.copy(
             loading = false,
             videos = videos,
-            error = if (videos.isEmpty()) "Could not load public videos from your saved channels. Check your connection and try again." else null
+            error = if (videos.isEmpty()) "Could not load public videos from your saved channels. Check your connection and try again." else null,
+            shortsVideos = shorts,
+            shortsLoading = shorts.isEmpty(),
+            shortsError = null
         )
+        if (shorts.isEmpty()) loadFallbackShorts()
+    }
+
+    /**
+     * Some channels do not expose a Shorts tab. In that case, use public
+     * search results only when NewPipe explicitly identifies them as Shorts.
+     */
+    private suspend fun loadFallbackShorts() {
+        _state.value = _state.value.copy(shortsLoading = true, shortsError = null)
+        try {
+            val result = withTimeoutOrNull(15_000) { videoProvider.searchVideos("shorts") }
+            val shorts = result?.items.orEmpty()
+                .filter { it.isShortFormContent }
+                .distinctBy { it.videoId }
+                .take(40)
+            _state.value = _state.value.copy(
+                shortsLoading = false,
+                shortsVideos = shorts,
+                shortsError = if (shorts.isEmpty()) {
+                    result?.errorMessage ?: "No videos were identified as Shorts. Try again later."
+                } else null
+            )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            _state.value = _state.value.copy(
+                shortsLoading = false,
+                shortsError = "Could not load Shorts. Check your connection and try again."
+            )
+        }
     }
 }
 

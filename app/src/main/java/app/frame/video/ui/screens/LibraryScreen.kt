@@ -93,9 +93,7 @@ fun LibraryScreen(
 @Composable
 fun ShortsScreen(discovery: DiscoveryViewModel, onOpenVideo: (String) -> Unit) {
     val state by discovery.state.collectAsStateWithLifecycle()
-    val shorts = remember(state.discoveredVideos) {
-        state.discoveredVideos.filter { it.isShortFormContent }
-    }
+    val shorts = state.shortsVideos
     Column(Modifier.fillMaxSize()) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp),
@@ -110,14 +108,14 @@ fun ShortsScreen(discovery: DiscoveryViewModel, onOpenVideo: (String) -> Unit) {
             }
         }
         when {
-            state.discoveryLoading && shorts.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            state.shortsLoading && shorts.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
             shorts.isEmpty() -> Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("No Shorts available", style = MaterialTheme.typography.titleLarge)
                     Text(
-                        state.discoveryError ?: "The current discovery results contain no videos identified by the provider as Shorts.",
+                        state.shortsError ?: "Channels without a Shorts tab may not have public short-form results.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     OutlinedButton(onClick = discovery::refresh) { Text("Refresh") }

@@ -76,4 +76,13 @@ internal object NewPipeClient {
         else ChannelTabInfo.getInfo(ServiceList.YouTube, videoTab).relatedItems.orEmpty()
             .filterIsInstance<StreamInfoItem>()
     }
+
+    suspend fun channelShorts(info: ChannelInfo): List<StreamInfoItem> = withContext(Dispatchers.IO) {
+        ensureInitialized()
+        val shortsTab = info.tabs.firstOrNull { tab ->
+            tab.contentFilters.any { it.equals("shorts", ignoreCase = true) }
+        } ?: return@withContext emptyList()
+        ChannelTabInfo.getInfo(ServiceList.YouTube, shortsTab).relatedItems.orEmpty()
+            .filterIsInstance<StreamInfoItem>()
+    }
 }

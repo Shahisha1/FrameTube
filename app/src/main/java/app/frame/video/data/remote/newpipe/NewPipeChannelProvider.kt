@@ -5,6 +5,8 @@ import app.frame.video.domain.provider.ChannelProfile
 import app.frame.video.domain.provider.ChannelProvider
 import app.frame.video.domain.provider.MetadataAvailability
 import app.frame.video.domain.provider.VideoMetadataResult
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 
 class NewPipeChannelProvider : ChannelProvider {
@@ -22,21 +24,35 @@ class NewPipeChannelProvider : ChannelProvider {
             subscriberCount = info.subscriberCount.takeIf { it >= 0L },
             verified = info.isVerified
         )
-        val videos = NewPipeClient.channelVideos(info).mapNotNull { item ->
-            val id = VIDEO_URL_ID.find(item.url)?.groupValues?.getOrNull(1)
-                ?: VIDEO_ID.find(item.url)?.value
-                ?: return@mapNotNull null
-            VideoMetadataResult(
-                videoId = id,
-                title = item.name,
-                channelId = info.id,
-                thumbnailUrl = item.thumbnails.firstOrNull()?.url,
-                availability = MetadataAvailability.AVAILABLE,
-                durationSeconds = item.duration.takeIf { it > 0L },
-                isShortFormContent = item.isShortFormContent
-            )
-        }.distinctBy { it.videoId }
-        return ChannelPageData(profile, videos)
+
+        // Both tabs share the extracted channel profile; their blocking page
+        // requests run on NewPipeClient's IO dispatcher.
+        val (videos, shorts) = coroutineScope {
+            val videosTask = async { NewPipeClient.channelVideos(info) }
+            val shortsTask = async { NewPipeClient.channelShorts(info) }
+            videosTask.await() to shortsTask.await()
+        }
+
+        return ChannelPageData(
+            profile = profile,
+            videos = videos.mapNotNull { it.toVideo(info.id, forceShort = false) }.distinctBy { it.videoId },
+            shorts = shorts.mapNotNull { it.toVideo(info.id, forceShort = true) }.distinctBy { it.videoId }
+        )
+    }
+
+    private fun StreamInfoItem.toVideo(channelId: String, forceShort: Boolean): VideoMetadataResult? {
+        val id = VIDEO_URL_ID.find(url)?.groupValues?.getOrNull(1)
+            ?: VIDEO_ID.find(url)?.value
+            ?: return null
+        return VideoMetadataResult(
+            videoId = id,
+            title = name,
+            channelId = channelId,
+            thumbnailUrl = thumbnails.firstOrNull()?.url,
+            availability = MetadataAvailability.AVAILABLE,
+            durationSeconds = duration.takeIf { it > 0L },
+            isShortFormContent = forceShort || isShortFormContent
+        )
     }
 
     private companion object {

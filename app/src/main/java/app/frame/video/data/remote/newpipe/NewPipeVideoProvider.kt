@@ -9,6 +9,7 @@ import app.frame.video.domain.provider.VideoProvider
 import app.frame.video.domain.provider.VideoSearchResult
 import kotlinx.coroutines.CancellationException
 import org.schabi.newpipe.extractor.InfoItem
+import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import org.schabi.newpipe.extractor.Page
 import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandler
 import java.io.IOException
@@ -88,7 +89,18 @@ class NewPipeVideoProvider : VideoProvider {
         when (item.infoType.name) {
             "STREAM" -> {
                 val id = VIDEO_URL_ID.find(item.url)?.groupValues?.get(1) ?: VIDEO_ID.find(item.url)?.value
-                if (id != null) videos += VideoMetadataResult(id, item.name, null, thumbnail, MetadataAvailability.AVAILABLE)
+                if (id != null) {
+                    val stream = item as? StreamInfoItem
+                    videos += VideoMetadataResult(
+                        videoId = id,
+                        title = item.name,
+                        channelId = null,
+                        thumbnailUrl = thumbnail,
+                        availability = MetadataAvailability.AVAILABLE,
+                        durationSeconds = stream?.duration?.takeIf { it > 0L },
+                        isShortFormContent = stream?.isShortFormContent == true
+                    )
+                }
             }
             "CHANNEL" -> channels += ChannelSearchResult(item.url, item.name, thumbnail)
             "PLAYLIST" -> playlists += PlaylistSearchResult(item.url, item.name, thumbnail)
