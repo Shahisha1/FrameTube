@@ -21,8 +21,14 @@ class ProviderManager(
         val expiresAtMillis: Long
     )
 
+    private class LockEntry {
+        val mutex = Mutex()
+        // Accessed only inside ConcurrentHashMap.compute/computeIfPresent.
+        var users: Int = 0
+    }
+
     private val playbackCache = ConcurrentHashMap<String, CachedPlayback>()
-    private val playbackLocks = ConcurrentHashMap<String, Mutex>()
+    private val playbackLocks = ConcurrentHashMap<String, LockEntry>()
 
     fun metadataProvider(providerId: String): VideoProvider? =
         metadataProviders.firstOrNull { it.providerId == providerId }
@@ -31,25 +37,38 @@ class ProviderManager(
         playbackProviders.firstOrNull { it.supports(videoId) }
 
     suspend fun resolvePlayback(videoId: String): PlaybackResolution {
-        val lock = playbackLocks.computeIfAbsent(videoId) { Mutex() }
-        return lock.withLock {
-            val now = System.currentTimeMillis()
-            playbackCache[videoId]?.let { cached ->
-                if (cached.expiresAtMillis > now) return@withLock cached.resolution
-                playbackCache.remove(videoId, cached)
-            }
+        val entry = playbackLocks.compute(videoId) { _, existing ->
+            (existing ?: LockEntry()).also { it.users += 1 }
+        }!!
+        return try {
+            entry.mutex.withLock {
+                val now = System.currentTimeMillis()
+                playbackCache[videoId]?.let { cached ->
+                    if (cached.expiresAtMillis > now) return@withLock cached.resolution
+                    playbackCache.remove(videoId, cached)
+                }
 
-            val provider = playbackProvider(videoId)
-                ?: return@withLock PlaybackResolution.Failed(
-                    PlaybackState.UNSUPPORTED,
-                    "No playback source is available for this video."
-                )
-            val result = provider.resolve(videoId)
-            if (result is PlaybackResolution.Ready) {
-                playbackCache[videoId] = CachedPlayback(result, System.currentTimeMillis() + CACHE_TTL_MILLIS)
+                val provider = playbackProvider(videoId)
+                    ?: return@withLock PlaybackResolution.Failed(
+                        PlaybackState.UNSUPPORTED,
+                        "No playback source is available for this video."
+                    )
+                val result = provider.resolve(videoId)
+                if (result is PlaybackResolution.Ready) {
+                    playbackCache[videoId] = CachedPlayback(result, System.currentTimeMillis() + CACHE_TTL_MILLIS)
+                }
+                trimCaches(System.currentTimeMillis())
+                result
             }
-            trimCaches(System.currentTimeMillis())
-            result
+        } finally {
+            // Remove idle per-video locks without racing a caller that has
+            // obtained the same entry but has not acquired its Mutex yet.
+            playbackLocks.computeIfPresent(videoId) { _, current ->
+                if (current === entry) {
+                    current.users -= 1
+                    if (current.users == 0) null else current
+                } else current
+            }
         }
     }
 
@@ -64,17 +83,10 @@ class ProviderManager(
         if (playbackCache.size > MAX_CACHED_SOURCES) {
             playbackCache.keys.take(playbackCache.size - MAX_CACHED_SOURCES).forEach(playbackCache::remove)
         }
-        if (playbackLocks.size > MAX_LOCKS) {
-            playbackLocks.entries
-                .filter { !it.value.isLocked && it.key !in playbackCache }
-                .take(playbackLocks.size - MAX_LOCKS)
-                .forEach { playbackLocks.remove(it.key, it.value) }
-        }
     }
 
     private companion object {
         const val CACHE_TTL_MILLIS = 60_000L
         const val MAX_CACHED_SOURCES = 128
-        const val MAX_LOCKS = 256
     }
 }
