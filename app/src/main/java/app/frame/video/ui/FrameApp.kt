@@ -290,7 +290,9 @@ fun FrameApp(
                             }
                         },
                         library = container.library,
-                        metadataProvider = container.providerManager.metadataProvider("newpipe")!!
+                        metadataProvider = container.providerManager.metadataProvider("newpipe")!!,
+                        channelProvider = container.channelProvider,
+                        onOpenChannel = { channelId -> nav.navigate(Routes.channel(channelId)) }
                     )
                 }
                 composable(Routes.LOCAL_PLAYER) { entry ->

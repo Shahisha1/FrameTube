@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Favorite
@@ -25,6 +26,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -70,6 +72,11 @@ import app.frame.video.data.sponsorblock.SponsorBlockClient
 import app.frame.video.data.sponsorblock.SponsorSegment
 import app.frame.video.ui.components.openOnYouTube
 import app.frame.video.domain.LibraryRepository
+import app.frame.video.data.local.ChannelEntity
+import app.frame.video.domain.provider.ChannelProvider
+import app.frame.video.domain.provider.ChannelProfile
+import kotlinx.coroutines.flow.flowOf
+import coil.compose.AsyncImage
 import app.frame.video.domain.provider.VideoProvider
 import kotlinx.coroutines.launch
 import app.frame.video.ui.viewmodel.PlayerUiState
@@ -87,7 +94,9 @@ fun PlayerScreen(
     onOpenSettings: () -> Unit,
     onQueueItemChanged: (String) -> Unit,
     library: LibraryRepository,
-    metadataProvider: VideoProvider
+    metadataProvider: VideoProvider,
+    channelProvider: ChannelProvider,
+    onOpenChannel: (String) -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -104,6 +113,21 @@ fun PlayerScreen(
         }
     }
     val videoTitle = metadata?.title?.takeIf { it.isNotBlank() } ?: "Video"
+    val channel by produceState<ChannelProfile?>(initialValue = null, metadata?.channelId) {
+        val id = metadata?.channelId?.takeIf { it.isNotBlank() } ?: return@produceState
+        val url = if (id.startsWith("http")) id else "https://www.youtube.com/channel/$id"
+        try {
+            value = channelProvider.getChannelPage(url).profile
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            value = null
+        }
+    }
+    val subscribedFlow = remember(channel?.id) {
+        channel?.let { library.observeIsSubscribed(it.id) } ?: flowOf(false)
+    }
+    val subscribed by subscribedFlow.collectAsStateWithLifecycle(initialValue = false)
     val upcomingVideo = sessionState.queue.entries.getOrNull(sessionState.queue.currentIndex + 1)
     LaunchedEffect(sessionState.currentVideoId, sessionState.queue.mode) {
         val nextId = sessionState.currentVideoId
@@ -152,6 +176,57 @@ fun PlayerScreen(
         ) {
             Text(videoTitle, style = MaterialTheme.typography.titleLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
             Text("YouTube video · $videoId", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            channel?.let { profile ->
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(11.dp)
+                ) {
+                    if (!profile.avatarUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = profile.avatarUrl,
+                            contentDescription = "${profile.name} channel",
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                            modifier = Modifier.size(42.dp).clip(CircleShape).clickable { onOpenChannel(profile.id) }
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.AccountCircle,
+                            contentDescription = null,
+                            modifier = Modifier.size(42.dp).clickable { onOpenChannel(profile.id) },
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Column(
+                        Modifier.weight(1f).clickable { onOpenChannel(profile.id) },
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Text(profile.name, style = MaterialTheme.typography.titleSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, maxLines = 1)
+                        profile.subscriberCount?.let {
+                            Text("${formatChannelCount(it)} subscribers", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                try {
+                                    library.saveChannel(ChannelEntity(profile.id, profile.name, profile.url, profile.avatarUrl))
+                                    library.setSubscribed(profile.id, !subscribed)
+                                } catch (cancelled: CancellationException) {
+                                    throw cancelled
+                                } catch (_: Exception) { }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (subscribed) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.onSurface,
+                            contentColor = if (subscribed) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.background
+                        )
+                    ) {
+                        Text(if (subscribed) "Subscribed" else "Subscribe")
+                    }
+                }
+            }
 
             Row(
                 Modifier.fillMaxWidth(),
@@ -370,4 +445,11 @@ private fun formatPlayerTime(milliseconds: Long): String {
     val minutes = (seconds % 3_600) / 60
     val remainder = seconds % 60
     return if (hours > 0) "%d:%02d:%02d".format(hours, minutes, remainder) else "%d:%02d".format(minutes, remainder)
+}
+
+private fun formatChannelCount(count: Long): String = when {
+    count >= 1_000_000_000L -> "%.1fB".format(count / 1_000_000_000.0)
+    count >= 1_000_000L -> "%.1fM".format(count / 1_000_000.0)
+    count >= 1_000L -> "%.1fK".format(count / 1_000.0)
+    else -> count.toString()
 }
