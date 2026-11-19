@@ -412,7 +412,6 @@ private fun ExoSurface(videoId: String, source: PlaybackResolution.Ready, vm: Pl
     Box(
         Modifier.fillMaxWidth().aspectRatio(16f / 9f)
             .background(Color.Black)
-            .clickable { controlsVisible = !controlsVisible }
     ) {
         AndroidView(
             factory = {
@@ -425,6 +424,7 @@ private fun ExoSurface(videoId: String, source: PlaybackResolution.Ready, vm: Pl
             update = { it.player = player },
             modifier = Modifier.fillMaxSize()
         )
+        Box(Modifier.fillMaxSize().clickable { controlsVisible = !controlsVisible })
         if (controlsVisible) {
             Box(
                 Modifier.fillMaxSize().background(
