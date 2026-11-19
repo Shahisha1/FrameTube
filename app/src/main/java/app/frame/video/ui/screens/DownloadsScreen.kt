@@ -2,11 +2,14 @@ package app.frame.video.ui.screens
 
 import android.app.DownloadManager
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -14,12 +17,11 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -32,6 +34,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import app.frame.video.data.download.DownloadItem
 import app.frame.video.data.download.DownloadStore
@@ -63,20 +68,20 @@ fun DownloadsScreen(store: DownloadStore, onPlay: (Long) -> Unit) {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("OFFLINE LIBRARY", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                Text("Downloads", style = MaterialTheme.typography.headlineLarge)
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    "Keep direct video files on this device. Downloads work offline and stay inside Frame.",
+                    "Direct video files saved on this device.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
         }
         item {
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Add a video file", style = MaterialTheme.typography.titleLarge)
+            Column(
+                Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                    Text("Add a video file", style = MaterialTheme.typography.titleMedium)
                     OutlinedTextField(
                         value = url, onValueChange = { url = it; error = null },
                         modifier = Modifier.fillMaxWidth(), singleLine = true,
@@ -114,10 +119,10 @@ fun DownloadsScreen(store: DownloadStore, onPlay: (Long) -> Unit) {
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                }
             }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
-        item { Text("On this device", style = MaterialTheme.typography.titleLarge) }
+        item { Text("On this device", style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold) }
         if (downloads.isEmpty()) {
             item {
                 Text("No downloads yet. Add a direct video file link above.", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -144,30 +149,40 @@ private fun DownloadRow(item: DownloadItem, onPlay: (Long) -> Unit, onRemove: ()
         DownloadManager.STATUS_PAUSED -> "Paused"
         else -> "Download failed · code ${item.reason}"
     }
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text(item.title, style = MaterialTheme.typography.titleMedium, maxLines = 2)
-                    Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Column(Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Box(
+                Modifier.size(104.dp, 68.dp).clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Download, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(28.dp))
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text(item.title, style = MaterialTheme.typography.bodyMedium, maxLines = 2)
+                Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (item.status == DownloadManager.STATUS_RUNNING || item.status == DownloadManager.STATUS_PENDING || item.status == DownloadManager.STATUS_PAUSED) {
+                    LinearProgressIndicator(progress = { item.progress }, modifier = Modifier.fillMaxWidth())
+                    Text(
+                        if (item.totalBytes > 0) "${item.downloadedBytes / 1_048_576} / ${item.totalBytes / 1_048_576} MB"
+                        else "${item.downloadedBytes / 1_048_576} MB downloaded",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-                IconButton(onClick = onRemove) { Icon(Icons.Default.DeleteOutline, contentDescription = "Remove download") }
-            }
-            if (item.status == DownloadManager.STATUS_RUNNING || item.status == DownloadManager.STATUS_PENDING || item.status == DownloadManager.STATUS_PAUSED) {
-                LinearProgressIndicator(progress = { item.progress }, modifier = Modifier.fillMaxWidth())
-                Text(
-                    if (item.totalBytes > 0) "${item.downloadedBytes / 1_048_576} / ${item.totalBytes / 1_048_576} MB"
-                    else "${item.downloadedBytes / 1_048_576} MB downloaded",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            if (item.complete) {
-                TextButton(onClick = { onPlay(item.id) }) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = null)
-                    Text("Play offline", modifier = Modifier.padding(start = 6.dp))
+                if (item.complete) {
+                    TextButton(onClick = { onPlay(item.id) }) {
+                        Icon(Icons.Default.PlayArrow, contentDescription = null)
+                        Text("Play offline", modifier = Modifier.padding(start = 6.dp))
+                    }
                 }
             }
+            IconButton(onClick = onRemove) { Icon(Icons.Default.DeleteOutline, contentDescription = "Remove download") }
         }
+        HorizontalDivider(Modifier.padding(top = 10.dp), color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
