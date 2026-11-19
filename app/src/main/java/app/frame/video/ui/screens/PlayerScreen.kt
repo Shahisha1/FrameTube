@@ -17,6 +17,8 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -77,6 +79,7 @@ fun PlayerScreen(
     val context = LocalContext.current
     val state by vm.state.collectAsStateWithLifecycle()
     val sessionState by session.state.collectAsStateWithLifecycle()
+    val upcomingVideo = sessionState.queue.entries.getOrNull(sessionState.queue.currentIndex + 1)
     LaunchedEffect(sessionState.currentVideoId, sessionState.queue.mode) {
         val nextId = sessionState.currentVideoId
         if (
@@ -117,6 +120,27 @@ fun PlayerScreen(
                     Text("Can't play this video", style = MaterialTheme.typography.titleLarge)
                     Text(s.message, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Button(onClick = vm::load) { Text("Try again") }
+                }
+            }
+        }
+        if (sessionState.queue.entries.size > 1) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("UP NEXT", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                    Text(
+                        upcomingVideo?.title ?: "End of queue",
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 2
+                    )
+                }
+                IconButton(onClick = session::playPrevious, enabled = sessionState.queue.hasPrevious) {
+                    Icon(Icons.Default.SkipPrevious, contentDescription = "Play previous video")
+                }
+                IconButton(onClick = session::playNext, enabled = sessionState.queue.hasNext) {
+                    Icon(Icons.Default.SkipNext, contentDescription = "Play next video")
                 }
             }
         }
