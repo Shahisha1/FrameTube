@@ -21,8 +21,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,12 +46,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.frame.video.data.local.VideoEntity
 import app.frame.video.domain.provider.VideoMetadataResult
 import app.frame.video.ui.viewmodel.DiscoveryViewModel
 import app.frame.video.ui.viewmodel.LibraryViewModel
 import coil.compose.AsyncImage
+import android.content.Intent
 
 private val discoveryTopics = listOf("All", "Music", "Gaming", "Mixes", "Live", "Technology", "Learning", "Recently uploaded")
 
@@ -112,6 +118,7 @@ fun HomeScreen(
             }
             items(recent.take(4), key = { "recent-" + it.id }) { video ->
                 HomeVideoItem(
+                    videoId = video.id,
                     title = video.title,
                     thumbnail = video.thumbnailUrl,
                     channel = "Continue watching",
@@ -144,6 +151,7 @@ fun HomeScreen(
             }
             else -> items(recommendations, key = { "discover-" + it.videoId }) { video ->
                 HomeVideoItem(
+                    videoId = video.videoId,
                     title = video.title?.takeIf { it.isNotBlank() } ?: "Untitled video",
                     thumbnail = video.thumbnailUrl,
                     channel = "YouTube",
@@ -207,18 +215,21 @@ private fun SectionHeading(title: String, onRefresh: (() -> Unit)?) {
 
 @Composable
 private fun HomeVideoItem(
+    videoId: String,
     title: String,
     thumbnail: String?,
     channel: String,
     duration: Long?,
     onClick: () -> Unit
 ) {
-    Column(
-        Modifier.fillMaxWidth().padding(bottom = 13.dp)
-    ) {
+    val context = LocalContext.current
+    var menuExpanded by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth().padding(bottom = 13.dp)) {
         Box(
-            Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(3.dp))
+            Modifier.fillMaxWidth().aspectRatio(16f / 9f)
+                .clip(RoundedCornerShape(3.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
+                .clickable(onClickLabel = "Play video", onClick = onClick)
         ) {
             if (!thumbnail.isNullOrBlank()) {
                 AsyncImage(
@@ -241,31 +252,18 @@ private fun HomeVideoItem(
                     fontWeight = FontWeight.SemiBold
                 )
             }
-            Box(Modifier.fillMaxSize().background(Color.Transparent).then(Modifier)) {}
-            androidx.compose.foundation.layout.Box(
-                Modifier.fillMaxSize().clip(RoundedCornerShape(3.dp))
-                    .then(Modifier)
-                    .padding(0.dp)
-            ) {}
-            androidx.compose.foundation.layout.Box(
-                Modifier.fillMaxSize().clip(RoundedCornerShape(3.dp))
-                    .then(Modifier)
-                    .background(Color.Transparent)
-                    .androidClick(onClick)
-            )
         }
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 7.dp),
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(11.dp)
         ) {
-            Box(
-                Modifier.padding(top = 1.dp).size(36.dp).clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(channel.take(1).uppercase(), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-            }
+            Icon(
+                Icons.Default.AccountCircle,
+                contentDescription = null,
+                modifier = Modifier.padding(top = 1.dp).size(38.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(
@@ -276,11 +274,28 @@ private fun HomeVideoItem(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            IconButton(onClick = onClick, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Default.MoreVert, contentDescription = "Video options")
+            Box {
+                IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "Video options")
+                }
+                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Open video") },
+                        onClick = { menuExpanded = false; onClick() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Share") },
+                        onClick = {
+                            menuExpanded = false
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, "https://www.youtube.com/watch?v=$videoId")
+                            }
+                            context.startActivity(Intent.createChooser(intent, "Share video"))
+                        }
+                    )
+                }
             }
         }
     }
 }
-
-private fun Modifier.androidClick(onClick: () -> Unit): Modifier = this.clickable(onClick = onClick)
