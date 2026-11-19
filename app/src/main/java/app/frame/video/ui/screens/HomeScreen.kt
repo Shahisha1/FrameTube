@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -72,7 +73,7 @@ fun HomeScreen(
     onExploreTopic: (String) -> Unit,
     onOpenVideo: (String) -> Unit,
     onOpenRecommendation: (String, List<VideoMetadataResult>) -> Unit = { id, _ -> onOpenVideo(id) },
-    onOpenShorts: () -> Unit = {},
+    onOpenShorts: (String?) -> Unit = {},
     hideShorts: Boolean = false,
     mutedKeywords: String = "",
     maxPerChannel: Int = 3
@@ -140,7 +141,7 @@ fun HomeScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("Shorts", modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        TextButton(onClick = onOpenShorts) { Text("See all") }
+                        TextButton(onClick = { onOpenShorts(null) }) { Text("See all") }
                     }
                     LazyRow(
                         contentPadding = PaddingValues(horizontal = 12.dp),
@@ -148,7 +149,7 @@ fun HomeScreen(
                     ) {
                         items(feed.shortsVideos.take(10), key = { "short-" + it.videoId }) { short ->
                             Column(
-                                Modifier.width(148.dp).clickable { onOpenShorts() },
+                                Modifier.width(148.dp).clickable { onOpenShorts(short.videoId) },
                                 verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Box(
@@ -269,6 +270,7 @@ fun HomeVideoItem(
     thumbnail: String?,
     channel: String,
     duration: Long?,
+    channelAvatar: String? = null,
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
@@ -307,12 +309,21 @@ fun HomeVideoItem(
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(11.dp)
         ) {
-            Icon(
-                Icons.Default.AccountCircle,
-                contentDescription = null,
-                modifier = Modifier.padding(top = 1.dp).size(38.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            if (!channelAvatar.isNullOrBlank()) {
+                AsyncImage(
+                    model = channelAvatar,
+                    contentDescription = "$channel channel",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.padding(top = 1.dp).size(38.dp).clip(CircleShape)
+                )
+            } else {
+                Icon(
+                    Icons.Default.AccountCircle,
+                    contentDescription = null,
+                    modifier = Modifier.padding(top = 1.dp).size(38.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(

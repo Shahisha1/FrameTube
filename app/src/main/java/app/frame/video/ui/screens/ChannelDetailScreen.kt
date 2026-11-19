@@ -112,6 +112,7 @@ fun ChannelDetailScreen(
                                 thumbnail = video.thumbnailUrl,
                                 channel = profile.name,
                                 duration = video.durationSeconds,
+                                channelAvatar = profile.avatarUrl,
                                 onClick = { onOpenVideo(video.videoId) }
                             )
                         }

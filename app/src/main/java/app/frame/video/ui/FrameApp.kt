@@ -246,7 +246,13 @@ fun FrameApp(
                             container.playbackSession.setQueue(entries, PlaybackQueueMode.AUTOPLAY, startIndex)
                             openVideo(id)
                         },
-                        onOpenShorts = { nav.navigate(Routes.SHORTS) },
+                        onOpenShorts = { selectedId ->
+                            val shorts = discovery.state.value.shortsVideos
+                            val entries = shorts.map { PlaybackQueueEntry(it.videoId, it.title.orEmpty(), it.thumbnailUrl) }
+                            val startIndex = selectedId?.let { id -> entries.indexOfFirst { it.videoId == id } }?.takeIf { it >= 0 } ?: 0
+                            if (entries.isNotEmpty()) container.playbackSession.setQueue(entries, PlaybackQueueMode.SHORTS, startIndex)
+                            nav.navigate(Routes.SHORTS)
+                        },
                         hideShorts = hideShorts,
                         mutedKeywords = mutedKeywords,
                         maxPerChannel = maxPerChannel
