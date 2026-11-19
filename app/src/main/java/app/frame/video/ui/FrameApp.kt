@@ -160,6 +160,11 @@ fun FrameApp(
                         onOpenImport = { openImport() },
                         onOpenChannels = { nav.navigate(Routes.SUBSCRIPTIONS) },
                         onOpenSearch = { openSearch() },
+                        onExploreTopic = { topic ->
+                            search.setQuery(topic)
+                            search.searchNow()
+                            openSearch()
+                        },
                         onOpenVideo = openVideo,
                         hideShorts = hideShorts,
                         mutedKeywords = mutedKeywords,
