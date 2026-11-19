@@ -41,6 +41,7 @@ import app.frame.video.AppContainer
 import app.frame.video.core.datastore.PipedConfig
 import app.frame.video.ui.navigation.Routes
 import app.frame.video.ui.screens.ChannelsScreen
+import app.frame.video.ui.screens.ChannelDetailScreen
 import app.frame.video.ui.screens.DetailsScreen
 import app.frame.video.ui.screens.DownloadsScreen
 import app.frame.video.ui.screens.HistoryScreen
@@ -54,6 +55,7 @@ import app.frame.video.ui.screens.PlaylistsScreen
 import app.frame.video.ui.screens.SearchScreen
 import app.frame.video.ui.screens.SettingsScreen
 import app.frame.video.ui.viewmodel.ImportViewModel
+import app.frame.video.ui.viewmodel.ChannelDetailViewModel
 import app.frame.video.ui.viewmodel.LibraryViewModel
 import app.frame.video.ui.viewmodel.PlayerViewModel
 import app.frame.video.ui.viewmodel.SearchViewModel
@@ -138,8 +140,16 @@ fun FrameApp(
     ) { padding ->
         NavHost(navController = nav, startDestination = Routes.HOME, modifier = Modifier.padding(padding)) {
             composable(Routes.HOME) { HomeScreen(library, onOpenImport = { openImport() }, onOpenSearch = { openSearch() }, onOpenVideo = openVideo) }
-            composable(Routes.SUBSCRIPTIONS) { ChannelsScreen(library, onImport = { openImport() }) }
+            composable(Routes.SUBSCRIPTIONS) { ChannelsScreen(library, onImport = { openImport() }, onOpenChannel = { nav.navigate(Routes.channel(it)) }) }
             composable(Routes.PLAYLISTS) { PlaylistsScreen(library, onOpenPlaylist = { nav.navigate(Routes.playlist(it)) }, onImport = { openImport() }) }
+            composable(Routes.CHANNEL) { entry ->
+                val id = entry.arguments?.getString("channelId").orEmpty()
+                val channelVm: ChannelDetailViewModel = viewModel(
+                    key = "channel-$id",
+                    factory = viewModelFactory { initializer { ChannelDetailViewModel(id, container.library, container.channelProvider) } }
+                )
+                ChannelDetailScreen(channelVm, openVideo)
+            }
             composable(Routes.PLAYLIST) { entry ->
                 PlaylistDetailScreen(entry.arguments?.getString("playlistId").orEmpty(), library, openVideo)
             }
@@ -170,7 +180,7 @@ fun FrameApp(
             }
             composable(Routes.PLAYER) { entry ->
                 val id = entry.arguments?.getString("videoId").orEmpty()
-                val vm: PlayerViewModel = viewModel(key = "player-$id", factory = viewModelFactory { initializer { PlayerViewModel(id, container.providerManager) } })
+                val vm: PlayerViewModel = viewModel(key = "player-$id", factory = viewModelFactory { initializer { PlayerViewModel(id, container.providerManager, container.library) } })
                 PlayerScreen(id, vm, onBack = { nav.popBackStack() }, onOpenSettings = { nav.navigate(Routes.SETTINGS) })
             }
             composable(Routes.LOCAL_PLAYER) { entry ->

@@ -22,6 +22,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -44,6 +45,7 @@ import app.frame.video.core.provider.PlaybackResolution
 import app.frame.video.ui.components.openOnYouTube
 import app.frame.video.ui.viewmodel.PlayerUiState
 import app.frame.video.ui.viewmodel.PlayerViewModel
+import kotlinx.coroutines.delay
 
 @Composable
 fun PlayerScreen(videoId: String, vm: PlayerViewModel, onBack: () -> Unit, onOpenSettings: () -> Unit) {
@@ -111,20 +113,38 @@ private fun ExoSurface(source: PlaybackResolution.Ready, vm: PlayerViewModel) {
             playWhenReady = true
         }
     }
+    LaunchedEffect(player) {
+        while (true) {
+            delay(10_000)
+            if (player.isPlaying) vm.savePosition(player.currentPosition, player.duration)
+        }
+    }
     DisposableEffect(player) {
         val listener = object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
                 vm.positionMs = player.currentPosition
+                vm.savePosition(player.currentPosition, player.duration)
                 vm.failPlayback("Playback stopped (${error.errorCodeName}). Check your connection and try again.")
+            }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_ENDED) {
+                    vm.savePosition(player.currentPosition, player.duration, ended = true)
+                }
             }
         }
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) { vm.positionMs = player.currentPosition; player.pause() }
+            if (event == Lifecycle.Event.ON_STOP) {
+                vm.positionMs = player.currentPosition
+                vm.savePosition(player.currentPosition, player.duration)
+                player.pause()
+            }
         }
         player.addListener(listener)
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             vm.positionMs = player.currentPosition
+            vm.savePosition(player.currentPosition, player.duration)
             lifecycleOwner.lifecycle.removeObserver(observer)
             player.removeListener(listener)
             player.release()

@@ -1,0 +1,48 @@
+name: Android CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Make the Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Run unit tests and assemble the debug APK
+        run: ./gradlew --no-daemon testDebugUnitTest assembleDebug
+
+      - name: Verify a non-empty debug APK was generated
+        shell: bash
+        run: |
+          mapfile -t apks < <(find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -size +0c -print)
+          if [[ "${#apks[@]}" -ne 1 ]]; then
+            echo "::error::Expected exactly one non-empty debug APK; found ${#apks[@]}."
+            find app/build/outputs/apk/debug -maxdepth 1 -type f -print || true
+            exit 1
+          fi
+          echo "APK generated: ${apks[0]}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FrameTube-debug
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7

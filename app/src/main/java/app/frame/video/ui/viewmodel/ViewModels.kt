@@ -9,6 +9,8 @@ import androidx.paging.cachedIn
 import app.frame.video.core.provider.PlaybackResolution
 import app.frame.video.domain.provider.VideoMetadataResult
 import app.frame.video.domain.provider.VideoProvider
+import app.frame.video.domain.provider.ChannelProvider
+import app.frame.video.domain.provider.ChannelProfile
 import app.frame.video.data.worker.MetadataEnrichmentScheduler
 import app.frame.video.core.provider.PlaybackState
 import app.frame.video.core.provider.ProviderManager
@@ -16,12 +18,17 @@ import app.frame.video.data.importer.TakeoutImportResult
 import app.frame.video.data.importer.TakeoutImporter
 import app.frame.video.data.importer.TakeoutParser
 import app.frame.video.data.local.VideoEntity
+import app.frame.video.data.local.ChannelEntity
 import app.frame.video.domain.LibraryCounts
 import app.frame.video.domain.LibraryRepository
+import app.frame.video.domain.PlaybackProgress
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -182,11 +189,15 @@ sealed interface PlayerUiState {
     data class Failed(val state: PlaybackState, val message: String) : PlayerUiState
 }
 
-class PlayerViewModel(private val videoId: String, private val providers: ProviderManager) : ViewModel() {
+class PlayerViewModel(
+    private val videoId: String,
+    private val providers: ProviderManager,
+    private val library: LibraryRepository
+) : ViewModel() {
     private val _state = MutableStateFlow<PlayerUiState>(PlayerUiState.Loading)
     val state: StateFlow<PlayerUiState> = _state
-    /** Last position, kept across rotation. */
     var positionMs: Long = 0
+    private var historyEntryId: Long? = null
 
     init { load() }
 
@@ -194,14 +205,110 @@ class PlayerViewModel(private val videoId: String, private val providers: Provid
         _state.value = PlayerUiState.Loading
         viewModelScope.launch {
             val provider = providers.playbackProvider(videoId)
-            _state.value = if (provider == null) {
-                PlayerUiState.Failed(PlaybackState.UNSUPPORTED, "No playback source is available for this video.")
-            } else when (val r = provider.resolve(videoId)) {
-                is PlaybackResolution.Ready -> PlayerUiState.Ready(r)
-                is PlaybackResolution.Failed -> PlayerUiState.Failed(r.state, r.message)
+            if (provider == null) {
+                _state.value = PlayerUiState.Failed(PlaybackState.UNSUPPORTED, "No playback source is available for this video.")
+                return@launch
+            }
+            when (val result = provider.resolve(videoId)) {
+                is PlaybackResolution.Ready -> {
+                    if (positionMs == 0L) positionMs = PlaybackProgress.resumePositionMs(savedPositionSeconds())
+                    recordPlayOnce()
+                    _state.value = PlayerUiState.Ready(result)
+                }
+                is PlaybackResolution.Failed -> _state.value = PlayerUiState.Failed(result.state, result.message)
+            }
+        }
+    }
+
+    fun savePosition(currentPositionMs: Long, durationMs: Long, ended: Boolean = false) {
+        val seconds = PlaybackProgress.secondsToSave(currentPositionMs, durationMs, ended)
+        if (seconds == 0L) positionMs = 0L
+        val entryId = historyEntryId ?: return
+        viewModelScope.launch {
+            withContext(NonCancellable) {
+                try { library.updatePlayPosition(entryId, seconds) }
+                catch (_: Exception) { /* Progress must never interrupt playback. */ }
             }
         }
     }
 
     fun failPlayback(message: String) { _state.value = PlayerUiState.Failed(PlaybackState.NETWORK_ERROR, message) }
+
+    private suspend fun savedPositionSeconds(): Long? = try {
+        library.lastPositionSeconds(videoId)
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        null
+    }
+
+    private suspend fun recordPlayOnce() {
+        if (historyEntryId != null) return
+        try {
+            library.ensureVideo(videoId, null, null)
+            historyEntryId = library.recordPlay(videoId, positionMs / 1_000L)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // Playback remains available if local history cannot be written.
+        }
+    }
+}
+
+data class ChannelPageUiState(
+    val loading: Boolean = true,
+    val profile: ChannelProfile? = null,
+    val videos: List<VideoMetadataResult> = emptyList(),
+    val error: String? = null
+)
+
+class ChannelDetailViewModel(
+    private val channelId: String,
+    private val library: LibraryRepository,
+    private val provider: ChannelProvider
+) : ViewModel() {
+    private val _state = MutableStateFlow(ChannelPageUiState())
+    val state: StateFlow<ChannelPageUiState> = _state
+    val subscribed: StateFlow<Boolean> = library.observeIsSubscribed(channelId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    init { load() }
+
+    fun load() {
+        _state.value = ChannelPageUiState(loading = true)
+        viewModelScope.launch {
+            try {
+                val saved = library.getChannel(channelId)
+                val url = saved?.channelUrl?.takeIf { it.isNotBlank() }
+                    ?: "https://www.youtube.com/channel/$channelId"
+                val page = provider.getChannelPage(url)
+                val profile = page.profile
+                library.saveChannel(
+                    ChannelEntity(
+                        id = profile.id,
+                        title = profile.name,
+                        channelUrl = profile.url,
+                        thumbnailUrl = profile.avatarUrl,
+                        importedAt = saved?.importedAt
+                    )
+                )
+                _state.value = ChannelPageUiState(profile = profile, videos = page.videos)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                _state.value = ChannelPageUiState(
+                    loading = false,
+                    error = error.message?.takeIf { it.isNotBlank() }
+                        ?: "Could not load this channel. Check your connection and try again."
+                )
+            }
+        }
+    }
+
+    fun toggleSubscription() {
+        viewModelScope.launch {
+            try { library.setSubscribed(channelId, !subscribed.value) }
+            catch (_: Exception) { /* Subscription state remains backed by Room. */ }
+        }
+    }
 }
