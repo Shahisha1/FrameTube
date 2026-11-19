@@ -19,4 +19,6 @@ Takeout metadata: parser -> one Room transaction -> WorkManager enrichment -> Ne
 
 Playback: details route -> ProviderManager -> NewPipe playback resolver -> configured Piped fallback -> Media3 player.
 
+Watch progress: PlayerViewModel adds one watch_history row when playback starts, at the saved resume point. PlayerScreen reports the position every 10 seconds, on stop, on error and on dispose; the write runs in a non-cancellable block so it survives the screen closing. PlaybackProgress holds the rules (positions under 5 s are ignored, finishing or stopping within 10 s of the end resets to 0). Resume reads the newest row for the video. Likes go through LibraryRepository.setLiked; ensureVideo creates the library row first because History and Liked join against videos.
+
 The structure follows FluxTube's separation of presentation, domain/application contracts, infrastructure, and playback orchestration while preserving FrameTube's native Android stack.

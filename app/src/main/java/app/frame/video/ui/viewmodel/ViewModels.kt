@@ -18,10 +18,12 @@ import app.frame.video.data.importer.TakeoutParser
 import app.frame.video.data.local.VideoEntity
 import app.frame.video.domain.LibraryCounts
 import app.frame.video.domain.LibraryRepository
+import app.frame.video.domain.PlaybackProgress
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -34,6 +36,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class LibraryViewModel(private val repo: LibraryRepository) : ViewModel() {
     val history = repo.pagedHistory().cachedIn(viewModelScope)
@@ -182,11 +185,16 @@ sealed interface PlayerUiState {
     data class Failed(val state: PlaybackState, val message: String) : PlayerUiState
 }
 
-class PlayerViewModel(private val videoId: String, private val providers: ProviderManager) : ViewModel() {
+class PlayerViewModel(
+    private val videoId: String,
+    private val providers: ProviderManager,
+    private val library: LibraryRepository
+) : ViewModel() {
     private val _state = MutableStateFlow<PlayerUiState>(PlayerUiState.Loading)
     val state: StateFlow<PlayerUiState> = _state
-    /** Last position, kept across rotation. */
+    /** Last position, kept across rotation and retries. Starts at the saved resume point. */
     var positionMs: Long = 0
+    private var historyEntryId: Long? = null
 
     init { load() }
 
@@ -194,14 +202,57 @@ class PlayerViewModel(private val videoId: String, private val providers: Provid
         _state.value = PlayerUiState.Loading
         viewModelScope.launch {
             val provider = providers.playbackProvider(videoId)
-            _state.value = if (provider == null) {
-                PlayerUiState.Failed(PlaybackState.UNSUPPORTED, "No playback source is available for this video.")
-            } else when (val r = provider.resolve(videoId)) {
-                is PlaybackResolution.Ready -> PlayerUiState.Ready(r)
-                is PlaybackResolution.Failed -> PlayerUiState.Failed(r.state, r.message)
+            if (provider == null) {
+                _state.value = PlayerUiState.Failed(PlaybackState.UNSUPPORTED, "No playback source is available for this video.")
+                return@launch
+            }
+            when (val r = provider.resolve(videoId)) {
+                is PlaybackResolution.Ready -> {
+                    if (positionMs == 0L) positionMs = PlaybackProgress.resumePositionMs(savedPositionSeconds())
+                    recordPlayOnce()
+                    _state.value = PlayerUiState.Ready(r)
+                }
+                is PlaybackResolution.Failed -> _state.value = PlayerUiState.Failed(r.state, r.message)
+            }
+        }
+    }
+
+    /** Stores where the user is, for the current play. Safe to call while the screen closes: the write is not cancelled. */
+    fun savePosition(currentPositionMs: Long, durationMs: Long, ended: Boolean = false) {
+        val seconds = PlaybackProgress.secondsToSave(currentPositionMs, durationMs, ended)
+        if (seconds == 0L) positionMs = 0
+        val entryId = historyEntryId ?: return
+        viewModelScope.launch {
+            withContext(NonCancellable) {
+                try {
+                    library.updatePlayPosition(entryId, seconds)
+                } catch (e: Exception) {
+                    // Progress is a convenience. A failed write must never break playback.
+                }
             }
         }
     }
 
     fun failPlayback(message: String) { _state.value = PlayerUiState.Failed(PlaybackState.NETWORK_ERROR, message) }
+
+    private suspend fun savedPositionSeconds(): Long? = try {
+        library.lastPositionSeconds(videoId)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
+    }
+
+    /** One history entry per screen visit. The entry starts at the resume point, so leaving at once keeps it. */
+    private suspend fun recordPlayOnce() {
+        if (historyEntryId != null) return
+        try {
+            library.ensureVideo(videoId, null, null)
+            historyEntryId = library.recordPlay(videoId, positionMs / 1000L)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // History is a convenience. Playback still starts.
+        }
+    }
 }

@@ -4,6 +4,9 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingSource
 import app.frame.video.data.local.LibraryDao
+import app.frame.video.data.local.LikeEntity
+import app.frame.video.data.local.VideoEntity
+import app.frame.video.data.local.WatchHistoryEntity
 import app.frame.video.domain.LibraryCounts
 import app.frame.video.domain.LibraryRepository
 import kotlinx.coroutines.flow.combine
@@ -25,6 +28,36 @@ class RoomLibraryRepository(private val dao: LibraryDao) : LibraryRepository {
     ) { v, c, p, w -> LibraryCounts(v, c, p, w) }
     override suspend fun getVideo(id: String) = dao.getVideo(id)
     override suspend fun deleteAll() = dao.clearAll()
+
+    override fun observeIsLiked(videoId: String) = dao.observeIsLiked(videoId)
+
+    override suspend fun setLiked(videoId: String, liked: Boolean) {
+        if (liked) dao.insertLike(LikeEntity(videoId, System.currentTimeMillis())) else dao.deleteLike(videoId)
+    }
+
+    override suspend fun ensureVideo(videoId: String, title: String?, thumbnailUrl: String?) {
+        val now = System.currentTimeMillis()
+        val realTitle = title?.takeIf { it.isNotBlank() && it != videoId }
+        dao.insertVideos(
+            listOf(
+                VideoEntity(
+                    id = videoId,
+                    title = realTitle ?: videoId,
+                    thumbnailUrl = thumbnailUrl,
+                    source = "APP",
+                    metadataUpdatedAt = if (realTitle != null) now else null
+                )
+            )
+        )
+        if (realTitle != null) dao.fillPlaceholderMetadata(videoId, realTitle, thumbnailUrl, now)
+    }
+
+    override suspend fun recordPlay(videoId: String, startSeconds: Long): Long =
+        dao.insertHistoryEntry(WatchHistoryEntity(videoId = videoId, watchedAt = System.currentTimeMillis(), positionSeconds = startSeconds))
+
+    override suspend fun updatePlayPosition(entryId: Long, seconds: Long) = dao.updateHistoryPosition(entryId, seconds)
+
+    override suspend fun lastPositionSeconds(videoId: String): Long? = dao.lastPositionSeconds(videoId)
 
     companion object {
         /** Escapes LIKE wildcards so user text is matched literally (queries use ESCAPE '\'). */

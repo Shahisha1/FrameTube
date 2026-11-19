@@ -78,7 +78,7 @@ fun SettingsScreen(
         HorizontalDivider()
 
         ListItem(headlineContent = { Text("Import Google Takeout") }, supportingContent = { Text("Review an archive before anything is saved.") }, trailingContent = { TextButton(onClick = onImport) { Text("Open") } })
-        ListItem(headlineContent = { Text("Delete library data") }, supportingContent = { Text("Removes everything imported from Takeout from this device.") }, trailingContent = { TextButton(onClick = { showDelete = true }) { Text("Delete") } })
+        ListItem(headlineContent = { Text("Delete library data") }, supportingContent = { Text("Removes imported data, watch history, likes and saved videos from this device.") }, trailingContent = { TextButton(onClick = { showDelete = true }) { Text("Delete") } })
         ListItem(headlineContent = { Text("About FrameTube") }, supportingContent = { Text("Version 0.1.0 · Free software, GPL-3.0-or-later · Your library stays on this device.") })
     }
 
@@ -94,7 +94,7 @@ fun SettingsScreen(
     if (showDelete) AlertDialog(
         onDismissRequest = { showDelete = false },
         title = { Text("Delete all library data?") },
-        text = { Text("Subscriptions, playlists, watch history, searches and import reports will be removed from this device. This can't be undone.") },
+        text = { Text("Subscriptions, playlists, watch history, likes, saved videos, searches and import reports will be removed from this device. This can't be undone.") },
         confirmButton = { Button(onClick = { showDelete = false; onDeleteData() }) { Text("Delete") } },
         dismissButton = { TextButton(onClick = { showDelete = false }) { Text("Cancel") } }
     )

@@ -144,7 +144,7 @@ fun FrameApp(container: AppContainer, darkTheme: Boolean, onToggleTheme: (Boolea
             }
             composable(Routes.PLAYER) { entry ->
                 val id = entry.arguments?.getString("videoId").orEmpty()
-                val vm: PlayerViewModel = viewModel(key = "player-$id", factory = viewModelFactory { initializer { PlayerViewModel(id, container.providerManager) } })
+                val vm: PlayerViewModel = viewModel(key = "player-$id", factory = viewModelFactory { initializer { PlayerViewModel(id, container.providerManager, container.library) } })
                 PlayerScreen(id, vm, onBack = { nav.popBackStack() }, onOpenSettings = { nav.navigate(Routes.SETTINGS) })
             }
         }

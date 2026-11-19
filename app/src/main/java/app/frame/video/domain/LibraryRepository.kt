@@ -22,4 +22,20 @@ interface LibraryRepository {
     fun observeCounts(): Flow<LibraryCounts>
     suspend fun getVideo(id: String): VideoEntity?
     suspend fun deleteAll()
+
+    fun observeIsLiked(videoId: String): Flow<Boolean>
+    suspend fun setLiked(videoId: String, liked: Boolean)
+
+    /**
+     * Makes sure a library row exists for a video, so history and likes can list it.
+     * A known [title] replaces a placeholder title (the video ID); a real title is never overwritten.
+     */
+    suspend fun ensureVideo(videoId: String, title: String?, thumbnailUrl: String?)
+
+    /** Adds a watch-history entry for an in-app play and returns its id. */
+    suspend fun recordPlay(videoId: String, startSeconds: Long): Long
+    suspend fun updatePlayPosition(entryId: Long, seconds: Long)
+
+    /** The position saved by the most recent play of this video, if any. */
+    suspend fun lastPositionSeconds(videoId: String): Long?
 }
