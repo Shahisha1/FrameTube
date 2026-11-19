@@ -20,6 +20,7 @@ import app.frame.video.data.importer.TakeoutParser
 import app.frame.video.data.local.VideoEntity
 import app.frame.video.data.local.ChannelEntity
 import app.frame.video.data.local.SearchHistoryEntity
+import app.frame.video.data.local.PlaylistEntity
 import app.frame.video.domain.LibraryCounts
 import app.frame.video.domain.LibraryRepository
 import app.frame.video.domain.PlaybackProgress
@@ -43,6 +44,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import java.util.UUID
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -51,6 +53,10 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 
 class LibraryViewModel(private val repo: LibraryRepository) : ViewModel() {
+    private companion object {
+        val VIDEO_ID = Regex("^[A-Za-z0-9_-]{11}$")
+        val VIDEO_URL_ID = Regex("(?:v=|youtu\\.be/|shorts/)([A-Za-z0-9_-]{11})")
+    }
     val history = repo.pagedHistory().cachedIn(viewModelScope)
     val liked = repo.pagedLiked().cachedIn(viewModelScope)
     val channels = repo.pagedChannels().cachedIn(viewModelScope)
@@ -62,6 +68,59 @@ class LibraryViewModel(private val repo: LibraryRepository) : ViewModel() {
 
     fun playlistVideos(id: String) = repo.pagedPlaylistVideos(id).cachedIn(viewModelScope)
     fun playlist(id: String) = repo.observePlaylist(id)
+    fun createPlaylist(title: String, description: String, onDone: () -> Unit, onError: (String) -> Unit) {
+        val cleanTitle = title.trim()
+        if (cleanTitle.isBlank()) { onError("Playlist name cannot be empty."); return }
+        viewModelScope.launch {
+            try {
+                repo.savePlaylist(PlaylistEntity(UUID.randomUUID().toString(), cleanTitle, description.trim().ifBlank { null }))
+                onDone()
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) { onError(error.message ?: "Could not create playlist.") }
+        }
+    }
+
+    fun updatePlaylist(id: String, title: String, description: String, onDone: () -> Unit, onError: (String) -> Unit) {
+        val cleanTitle = title.trim()
+        if (cleanTitle.isBlank()) { onError("Playlist name cannot be empty."); return }
+        viewModelScope.launch {
+            try {
+                repo.updatePlaylist(id, cleanTitle, description.trim().ifBlank { null })
+                onDone()
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) { onError(error.message ?: "Could not update playlist.") }
+        }
+    }
+
+    fun deletePlaylist(id: String, onDone: () -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            try { repo.deletePlaylist(id); onDone() }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) { onError(error.message ?: "Could not delete playlist.") }
+        }
+    }
+
+    fun addVideoToPlaylist(playlistId: String, input: String, onDone: (Boolean) -> Unit, onError: (String) -> Unit) {
+        val value = input.trim()
+        val videoId = if (VIDEO_ID.matches(value)) value else VIDEO_URL_ID.find(value)?.groupValues?.getOrNull(1)
+        if (videoId == null) { onError("Enter an 11-character video ID or a YouTube video URL."); return }
+        viewModelScope.launch {
+            try {
+                repo.ensureVideo(videoId, null, null)
+                onDone(repo.addVideoToPlaylist(playlistId, videoId))
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) { onError(error.message ?: "Could not add this video.") }
+        }
+    }
+
+    fun removeVideoFromPlaylist(playlistId: String, videoId: String, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            try { repo.removeVideoFromPlaylist(playlistId, videoId) }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) { onError(error.message ?: "Could not remove this video.") }
+        }
+    }
+
     fun deleteAll(onDone: () -> Unit) { viewModelScope.launch { repo.deleteAll(); onDone() } }
 }
 

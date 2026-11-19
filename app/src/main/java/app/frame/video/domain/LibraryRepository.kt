@@ -20,6 +20,11 @@ interface LibraryRepository {
     fun pagedPlaylistVideos(playlistId: String): Flow<PagingData<VideoEntity>>
     fun searchVideos(query: String): Flow<PagingData<VideoEntity>>
     fun observePlaylist(id: String): Flow<PlaylistEntity?>
+    suspend fun savePlaylist(playlist: PlaylistEntity)
+    suspend fun updatePlaylist(id: String, title: String, description: String?)
+    suspend fun deletePlaylist(id: String)
+    suspend fun addVideoToPlaylist(playlistId: String, videoId: String): Boolean
+    suspend fun removeVideoFromPlaylist(playlistId: String, videoId: String)
     fun observeRecentHistory(limit: Int): Flow<List<VideoEntity>>
     fun observeSearchHistory(limit: Int): Flow<List<SearchHistoryEntity>>
     suspend fun recordSearchQuery(query: String)

@@ -45,6 +45,21 @@ interface LibraryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertPlaylists(items: List<PlaylistEntity>)
 
+    @Query("UPDATE playlists SET title = :title, description = :description, updatedAt = :updatedAt WHERE id = :playlistId")
+    suspend fun updatePlaylist(playlistId: String, title: String, description: String?, updatedAt: Long)
+
+    @Query("DELETE FROM playlists WHERE id = :playlistId")
+    suspend fun deletePlaylist(playlistId: String)
+
+    @Query("SELECT COALESCE(MAX(position), -1) + 1 FROM playlist_entries WHERE playlistId = :playlistId")
+    suspend fun nextPlaylistPosition(playlistId: String): Int
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertPlaylistEntry(item: PlaylistEntryEntity): Long
+
+    @Query("DELETE FROM playlist_entries WHERE playlistId = :playlistId AND videoId = :videoId")
+    suspend fun removePlaylistEntry(playlistId: String, videoId: String)
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertPlaylistEntries(items: List<PlaylistEntryEntity>)
 

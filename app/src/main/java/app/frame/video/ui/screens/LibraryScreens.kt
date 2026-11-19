@@ -15,7 +15,15 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ListItem
@@ -28,6 +36,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -56,29 +66,153 @@ fun ChannelsScreen(vm: LibraryViewModel, onImport: () -> Unit, onOpenChannel: (S
 @Composable
 fun PlaylistsScreen(vm: LibraryViewModel, onOpenPlaylist: (String) -> Unit, onImport: () -> Unit) {
     val items = vm.playlists.collectAsLazyPagingItems()
+    var showCreate by remember { mutableStateOf(false) }
+    var title by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+
     Column(Modifier.fillMaxSize()) {
         LibraryHeading("YOUR COLLECTION", "Playlists", "Your saved video groups.")
+        OutlinedButton(onClick = { error = null; showCreate = true }, modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp)) {
+            Icon(Icons.Default.Add, contentDescription = null)
+            Text("New playlist")
+        }
         Box(Modifier.weight(1f)) {
-            PagedList(items, key = { it.id }, emptyTitle = "No playlists yet", emptyHint = "Playlists from your Takeout appear here.", actionLabel = "Import Takeout", onAction = onImport) {
+            PagedList(items, key = { it.id }, emptyTitle = "No playlists yet", emptyHint = "Create a playlist or import one from Takeout.", actionLabel = "Import Takeout", onAction = onImport) {
                 ListItem(
                     headlineContent = { Text(it.title) },
+                    supportingContent = { Text(it.source.lowercase().replaceFirstChar { c -> c.uppercase() }) },
                     leadingContent = { Icon(Icons.Default.List, null) },
                     modifier = Modifier.clickable(onClickLabel = "Open playlist") { onOpenPlaylist(it.id) }
                 )
             }
         }
     }
+
+    if (showCreate) {
+        AlertDialog(
+            onDismissRequest = { showCreate = false },
+            title = { Text("New playlist") },
+            text = {
+                Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp)) {
+                    androidx.compose.material3.OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Name") }, singleLine = true)
+                    androidx.compose.material3.OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text("Description (optional)") })
+                    error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.createPlaylist(title, description, onDone = {
+                        showCreate = false; title = ""; description = ""; error = null
+                    }, onError = { error = it })
+                }) { Text("Create") }
+            },
+            dismissButton = { TextButton(onClick = { showCreate = false }) { Text("Cancel") } }
+        )
+    }
 }
 
 @Composable
-fun PlaylistDetailScreen(playlistId: String, vm: LibraryViewModel, onOpenVideo: (String) -> Unit) {
+fun PlaylistDetailScreen(
+    playlistId: String,
+    vm: LibraryViewModel,
+    onOpenVideo: (String) -> Unit,
+    onDeleted: () -> Unit
+) {
     val playlist by remember(playlistId) { vm.playlist(playlistId) }.collectAsStateWithLifecycle(initialValue = null)
     val items = remember(playlistId) { vm.playlistVideos(playlistId) }.collectAsLazyPagingItems()
+    var showAdd by remember { mutableStateOf(false) }
+    var showEdit by remember { mutableStateOf(false) }
+    var showDelete by remember { mutableStateOf(false) }
+    var videoInput by remember { mutableStateOf("") }
+    var title by remember(playlist?.title) { mutableStateOf(playlist?.title.orEmpty()) }
+    var description by remember(playlist?.description) { mutableStateOf(playlist?.description.orEmpty()) }
+    var error by remember { mutableStateOf<String?>(null) }
+
     Column(Modifier.fillMaxSize()) {
-        LibraryHeading("PLAYLIST", playlist?.title ?: "Playlist", "Videos saved in this collection.")
-        Box(Modifier.weight(1f)) {
-            PagedList(items, key = { it.id }, emptyTitle = "This playlist is empty", emptyHint = "No videos were found for it in the archive.") { VideoRow(it, onOpenVideo) }
+        LibraryHeading("PLAYLIST", playlist?.title ?: "Playlist", playlist?.description ?: "Manage videos in this collection.")
+        androidx.compose.foundation.layout.Row(
+            Modifier.fillMaxWidth().padding(horizontal = 18.dp),
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedButton(onClick = { error = null; showAdd = true }, modifier = Modifier.weight(1f)) {
+                Icon(Icons.Default.Add, contentDescription = null)
+                Text("Add video")
+            }
+            IconButton(onClick = { title = playlist?.title.orEmpty(); description = playlist?.description.orEmpty(); error = null; showEdit = true }, enabled = playlist != null) {
+                Icon(Icons.Default.Edit, contentDescription = "Edit playlist")
+            }
+            IconButton(onClick = { error = null; showDelete = true }, enabled = playlist != null) {
+                Icon(Icons.Default.Delete, contentDescription = "Delete playlist")
+            }
         }
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp)) }
+        Box(Modifier.weight(1f)) {
+            PagedList(items, key = { it.id }, emptyTitle = "This playlist is empty", emptyHint = "Add a YouTube video ID or link to start this list.") {
+                VideoRow(it, onOpenVideo) {
+                    IconButton(onClick = { vm.removeVideoFromPlaylist(playlistId, it.id) { error = it } }) {
+                        Icon(Icons.Default.RemoveCircleOutline, contentDescription = "Remove from playlist", tint = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
+        }
+    }
+
+    if (showAdd) {
+        AlertDialog(
+            onDismissRequest = { showAdd = false },
+            title = { Text("Add video") },
+            text = {
+                Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+                    androidx.compose.material3.OutlinedTextField(value = videoInput, onValueChange = { videoInput = it }, label = { Text("YouTube URL or video ID") }, singleLine = true)
+                    Text("Frame saves the video to this playlist on this device.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.addVideoToPlaylist(playlistId, videoInput, onDone = { added ->
+                        if (added) { showAdd = false; videoInput = ""; error = null }
+                        else error = "This video is already in the playlist."
+                    }, onError = { error = it })
+                }) { Text("Add") }
+            },
+            dismissButton = { TextButton(onClick = { showAdd = false }) { Text("Cancel") } }
+        )
+    }
+
+    if (showEdit) {
+        AlertDialog(
+            onDismissRequest = { showEdit = false },
+            title = { Text("Edit playlist") },
+            text = {
+                Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+                    androidx.compose.material3.OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Name") }, singleLine = true)
+                    androidx.compose.material3.OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text("Description") })
+                    error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.updatePlaylist(playlistId, title, description, onDone = { showEdit = false; error = null }, onError = { error = it })
+                }) { Text("Save") }
+            },
+            dismissButton = { TextButton(onClick = { showEdit = false }) { Text("Cancel") } }
+        )
+    }
+
+    if (showDelete) {
+        AlertDialog(
+            onDismissRequest = { showDelete = false },
+            title = { Text("Delete playlist?") },
+            text = { Text("This removes the playlist and its list of videos. It does not delete the videos from your library.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.deletePlaylist(playlistId, onDone = onDeleted, onError = { error = it; showDelete = false })
+                }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { showDelete = false }) { Text("Cancel") } }
+        )
     }
 }
 

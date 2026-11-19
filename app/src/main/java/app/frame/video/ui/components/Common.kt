@@ -86,7 +86,7 @@ fun VideoThumbnail(url: String?, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun VideoRow(video: VideoEntity, onOpen: (String) -> Unit) {
+fun VideoRow(video: VideoEntity, onOpen: (String) -> Unit, trailingContent: (@Composable () -> Unit)? = null) {
     val idOnly = video.title == video.id
     ListItem(
         headlineContent = {
@@ -106,6 +106,7 @@ fun VideoRow(video: VideoEntity, onOpen: (String) -> Unit) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
+        trailingContent = trailingContent,
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
         modifier = Modifier.clickable(onClickLabel = "Open video") { onOpen(video.id) }
     )

@@ -153,7 +153,7 @@ fun FrameApp(
                 ChannelDetailScreen(channelVm, openVideo)
             }
             composable(Routes.PLAYLIST) { entry ->
-                PlaylistDetailScreen(entry.arguments?.getString("playlistId").orEmpty(), library, openVideo)
+                PlaylistDetailScreen(entry.arguments?.getString("playlistId").orEmpty(), library, openVideo) { nav.popBackStack() }
             }
             composable(Routes.HISTORY) { HistoryScreen(library, openVideo, onImport = { openImport() }) }
             composable(Routes.LIKED) { LikedScreen(library, openVideo, onImport = { openImport() }) }

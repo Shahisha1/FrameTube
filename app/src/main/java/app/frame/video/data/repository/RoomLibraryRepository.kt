@@ -10,6 +10,8 @@ import app.frame.video.data.local.WatchHistoryEntity
 import app.frame.video.data.local.ChannelEntity
 import app.frame.video.data.local.SubscriptionEntity
 import app.frame.video.data.local.SearchHistoryEntity
+import app.frame.video.data.local.PlaylistEntity
+import app.frame.video.data.local.PlaylistEntryEntity
 import app.frame.video.domain.LibraryCounts
 import app.frame.video.domain.LibraryRepository
 import kotlinx.coroutines.flow.combine
@@ -26,6 +28,16 @@ class RoomLibraryRepository(private val dao: LibraryDao) : LibraryRepository {
     override fun pagedPlaylistVideos(playlistId: String) = pager { dao.pagedPlaylistVideos(playlistId) }
     override fun searchVideos(query: String) = pager { dao.pagedSearch(escapeLike(query), query) }
     override fun observePlaylist(id: String) = dao.observePlaylist(id)
+    override suspend fun savePlaylist(playlist: PlaylistEntity) = dao.upsertPlaylists(listOf(playlist))
+    override suspend fun updatePlaylist(id: String, title: String, description: String?) =
+        dao.updatePlaylist(id, title, description, System.currentTimeMillis())
+    override suspend fun deletePlaylist(id: String) = dao.deletePlaylist(id)
+    override suspend fun addVideoToPlaylist(playlistId: String, videoId: String): Boolean {
+        val position = dao.nextPlaylistPosition(playlistId)
+        return dao.insertPlaylistEntry(PlaylistEntryEntity(playlistId, videoId, position)) != -1L
+    }
+    override suspend fun removeVideoFromPlaylist(playlistId: String, videoId: String) =
+        dao.removePlaylistEntry(playlistId, videoId)
     override fun observeRecentHistory(limit: Int) = dao.observeRecentHistory(limit)
     override fun observeSearchHistory(limit: Int) = dao.observeSearchHistory(limit)
     override suspend fun recordSearchQuery(query: String) = dao.recordSearchQuery(query, System.currentTimeMillis())
